@@ -16,7 +16,6 @@ class Hub(BaseModel):
         if self.start_hub is True and self.end_hub is True:
             print("primeiro if")
             raise ValueError("entrada e saida sao iguais")
-
         return self
 
 
