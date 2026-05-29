@@ -5,7 +5,7 @@ class Hub(BaseModel):
     name: str = Field(...)
     x: int
     y: int = Field(...)
-    color: str
+    color: str = Field(default="blue")
     max_drones: int = Field(default=1, ge=1)
     zone: str = Field(default="normal")
     start_hub: bool = Field(default=False)

@@ -14,16 +14,23 @@ def parser(config_file: str) -> None:
             if key.startswith("nb_drones"):
                 Drone.nb_drones = int(value.strip())
 
-            if key.startswith("start_hub"):
-                data = value.strip()
-                data = data.replace("]", "")
-                meta_data = data.split("[")
-                data = meta_data[0].strip().split(" ")
-                meta_data = meta_data[1]
-                value = value.strip().split(" ")
-                data_list = meta_data.split(" ")
+            elif key.startswith("start_hub"):
+                brute_data = value.strip()
+                brute_data = brute_data.replace("]", "").split("[")
+                data = brute_data[0].strip().split(" ")
+                value = data
 
-                
+                if len(brute_data) != 2:
+                    pass
+                else:
+                    meta = {k: v
+                            for k, v in (item.split("=")
+                                         for item in brute_data[1].split())}
+
+                    if not len(meta) <= 3:
+                        raise ValueError("Many Arguments in metadata!")
+                    value.append(meta)
+
                 start_hub = Hub(
                     name=value[0],
                     x=value[1],
@@ -32,9 +39,9 @@ def parser(config_file: str) -> None:
                     zone="normal",
                     start_hub=True,
                     )
-                print(data)
-                print(meta_data)
-                print(tu, tutu)
+# PRECISO PASSAR OS VALORES DE META P START_HUB
+                print(start_hub)
+
             # if key.startswith("hub"):
 
                 possibles_zones
@@ -47,9 +54,11 @@ def validate_input() -> None:
         with open(argv[1]) as file:
             config_file = file.read()
             config_dict = parser(config_file)
-    except (Exception, ValidationError) as e:
-        # print(e.errors()[0]["msg"])
-        print(e)
+    except (Exception, ValidationError) as e:  # PRECISO VER O ERRO DE VALIDATOR E DE EXCEPTION
+        if Exception:
+            print(e)
+        elif ValidationError:
+            print(e.errors()[0]["msg"])
         exit(1)
     return config_dict
 
