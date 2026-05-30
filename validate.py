@@ -1,64 +1,57 @@
 # from pydantic import BaseModel, Field, ValidationError, model_validator
 from sys import argv
-from parser import Hub, Drone
+from parser import Hub, Map
 from pydantic import ValidationError
 
 
-def parser(config_file: str) -> None:
-    hubs_list = []
-    possibles_zones = ["normal", "blocked", "restricted", "priority"]
-    for line in config_file.splitlines():
-        if line.strip() and not line.startswith("#"):
-            key, value = line.strip().split(":")
+class Parser:
+    def __init__(self, config_file: str) -> None:
+        self.config_file = config_file
 
-            if key.startswith("nb_drones"):
-                Drone.nb_drones = int(value.strip())
+    def parse(self) -> None:
+        # hubs_list = []
+        for line in self.config_file.splitlines():
+            if line.strip() and not line.startswith("#"):
+                key, value = line.strip().split(":")
 
-            elif key.startswith("start_hub"):
-                brute_data = value.strip()
-                brute_data = brute_data.replace("]", "").split("[")
-                data = brute_data[0].strip().split(" ")
-                value = data
+                if key.startswith("nb_drones"):
+                    Map.nb_drones = int(value.strip())
 
-                if len(brute_data) != 2:
-                    pass
-                else:
-                    meta = {k: v
-                            for k, v in (item.split("=")
-                                         for item in brute_data[1].split())}
+                elif key.startswith("start_hub"):
+                    datas = Hub.hub_validate(key, value)
+                    if len(datas) < 1:
+                        raise TypeError(f"The '{key}' has no data.")
+                    data, meta_data = datas
 
-                    if not len(meta) <= 3:
-                        raise ValueError("Many Arguments in metadata!")
-                    value.append(meta)
+                    print(data, meta_data)
+    # VER A CARALHA DOS NOMES REPETIDOS DE META, E DIVIDIR AS FUNÇOES EM PARSER
+    #             start_hub = Hub(
+    #                 name=value[0],
+    #                 x=value[1],
+    #                 y=value[2],
+    #                 start_hub=True,
+    #                 )
+    # # PRECISO PASSAR OS VALORES DE META P START_HUB
+    #             if "color" in meta.keys():
+    #                 start_hub.color = meta["color"]
+    #             print(start_hub)
 
-                start_hub = Hub(
-                    name=value[0],
-                    x=value[1],
-                    y=value[2],
-                    color="blue",
-                    zone="normal",
-                    start_hub=True,
-                    )
-# PRECISO PASSAR OS VALORES DE META P START_HUB
-                print(start_hub)
-
-            # if key.startswith("hub"):
-
-                possibles_zones
+                # if key.startswith("hub"):
                 # tratar depois os metadados como opcionais aqui!
 
 
 def validate_input() -> None:
     try:
-        config_dict: str
+
         with open(argv[1]) as file:
             config_file = file.read()
-            config_dict = parser(config_file)
+            config_dict = Parser(config_file)
+            config_dict.parse()
     except (Exception, ValidationError) as e:  # PRECISO VER O ERRO DE VALIDATOR E DE EXCEPTION
-        if Exception:
-            print(e)
-        elif ValidationError:
-            print(e.errors()[0]["msg"])
+        #     # if Exception:
+        print(e)
+        #     # elif ValidationError:
+        #     #    print(e.errors()[0]["msg"])
         exit(1)
     return config_dict
 
