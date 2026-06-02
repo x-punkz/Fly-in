@@ -1,6 +1,6 @@
 # from pydantic import BaseModel, Field, ValidationError, model_validator
 from sys import argv
-from parser import Hub, Map
+from parser import Hub, Map, ValidateDatas
 from pydantic import ValidationError
 
 
@@ -17,37 +17,45 @@ class Parser:
                 if key.startswith("nb_drones"):
                     Map.nb_drones = int(value.strip())
 
-                elif key.startswith("start_hub"):
-                    datas = Hub.hub_validate(key, value)
+                elif "hub" in key:
+                    datas = ValidateDatas.hub_validate(key, value)
                     if len(datas) < 1:
                         raise TypeError(f"The '{key}' has no data.")
+                    # na hora de validar vejo if "star_hub in key:
+                    # hub.start_hub = True"
                     data, meta_data = datas
 
                     print(data, meta_data)
-    # VER A CARALHA DOS NOMES REPETIDOS DE META, E DIVIDIR AS FUNÇOES EM PARSER
-    #             start_hub = Hub(
-    #                 name=value[0],
-    #                 x=value[1],
-    #                 y=value[2],
-    #                 start_hub=True,
+    # E DIVIDIR AS FUNÇOES EM PARSER
+    #             hub_list.append(
+    #                 Hub(
+        #                 name=value[0],
+        #                 x=value[1],
+        #                 y=value[2],
+        #                 start_hub=True,
     #                 )
+    #             )
     # # PRECISO PASSAR OS VALORES DE META P START_HUB
     #             if "color" in meta.keys():
-    #                 start_hub.color = meta["color"]
-    #             print(start_hub)
+    #                 hub.color = meta["color"]
+    #             
 
-                # if key.startswith("hub"):
+
                 # tratar depois os metadados como opcionais aqui!
 
 
 def validate_input() -> None:
+    if len(argv) < 2:
+        print("   Passe o arquivo de configuraçao!")
+        exit(1)
     try:
 
         with open(argv[1]) as file:
             config_file = file.read()
             config_dict = Parser(config_file)
             config_dict.parse()
-    except (Exception, ValidationError) as e:  # PRECISO VER O ERRO DE VALIDATOR E DE EXCEPTION
+    except (Exception, ValidationError) as e:
+        # PRECISO VER O ERRO DE VALIDATOR E DE EXCEPTION
         #     # if Exception:
         print(e)
         #     # elif ValidationError:

@@ -22,22 +22,36 @@ class Hub(BaseModel):
             raise ValueError("entrada e saida sao iguais")
         return self
 
+
+class ValidateDatas:
+    def __init__(self) -> None:
+        pass
+
     def hub_validate(key: str, value: str) -> tuple:
         key_names = ["zone", "color", "max_drones"]
         possible_zones = ["normal", "blocked", "restricted", "priority"]
-        brute_data = value.strip()
-        brute_data = brute_data.replace("]", "").split("[")
+        value = value.strip()
+        brute_data = value.split("[")
         data = brute_data[0].strip().split()
-        value = data
 
         if len(brute_data) != 2:
             meta = None
             pass
         else:
+            brute_metadata = brute_data[1].strip().split("]")
+
+            if not brute_metadata[1]:
+                brute_metadata = [brute_metadata[0]]
+
+            if (len(brute_metadata) > 1
+                    and not brute_metadata[1].strip().startswith("#")):
+                raise ParserError(f"Many arguments in line in: \
+'{key}: {value}'")
+
             meta = {k: v
                     for k, v in (
                         item.split("=")
-                        for item in brute_data[1].split()
+                        for item in brute_metadata[0].split()
                     )}
             if not len(meta) <= 3:
                 raise ParserError("Many Arguments in metadata!")
@@ -52,6 +66,7 @@ class Hub(BaseModel):
                     raise ParserError(f"{meta['zone']} is not a valid zone")
 
         return (data, meta)
+
 
 class Drone(BaseModel):
     name: str = Field(...)
