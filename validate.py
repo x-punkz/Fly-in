@@ -9,7 +9,7 @@ class Parser:
         self.config_file = config_file
 
     def parse(self) -> None:
-        # hubs_list = []
+        hub_list: list[Hub] = []
         for line in self.config_file.splitlines():
             if line.strip() and not line.startswith("#"):
                 key, value = line.strip().split(":")
@@ -21,27 +21,22 @@ class Parser:
                     datas = ValidateDatas.hub_validate(key, value)
                     if len(datas) < 1:
                         raise TypeError(f"The '{key}' has no data.")
-                    # na hora de validar vejo if "star_hub in key:
-                    # hub.start_hub = True"
                     data, meta_data = datas
+                    hub_list.append(
+                        Hub(
+                            name=data[0],
+                            x=data[1],
+                            y=data[2]
+                        )
+                    )
+                    if meta_data:
+                        hub_list[len(hub_list) - 1].set_metadata(meta_data)
+        for hub in hub_list:
+            hub.set_start_end()
 
-                    print(data, meta_data)
-    # E DIVIDIR AS FUNÇOES EM PARSER
-    #             hub_list.append(
-    #                 Hub(
-        #                 name=value[0],
-        #                 x=value[1],
-        #                 y=value[2],
-        #                 start_hub=True,
-    #                 )
-    #             )
-    # # PRECISO PASSAR OS VALORES DE META P START_HUB
-    #             if "color" in meta.keys():
-    #                 hub.color = meta["color"]
-    #             
+        print(*hub_list, sep="\n")
 
-
-                # tratar depois os metadados como opcionais aqui!
+        # fazer os conection
 
 
 def validate_input() -> None:

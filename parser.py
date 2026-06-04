@@ -22,11 +22,27 @@ class Hub(BaseModel):
             raise ValueError("entrada e saida sao iguais")
         return self
 
+    def set_metadata(self, metadata: dict[str]) -> None:
+        if "color" in metadata:
+            self.color = metadata["color"]
+        if "max_drones" in metadata:
+            self.max_drones = metadata["max_drones"]
+        if "zone" in metadata:
+            self.zone = metadata["zone"]
+
+    def set_start_end(self) -> None:
+        '''
+            Seta o hub como 'start' ou como 'end' se o 'name'
+        '''
+        if self.name == "start":
+            self.start_hub = True
+        elif self.name == "goal":
+            self.end_hub = True
+
 
 class ValidateDatas:
-    def __init__(self) -> None:
-        pass
 
+    @staticmethod
     def hub_validate(key: str, value: str) -> tuple:
         key_names = ["zone", "color", "max_drones"]
         possible_zones = ["normal", "blocked", "restricted", "priority"]
