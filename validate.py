@@ -1,6 +1,6 @@
 # from pydantic import BaseModel, Field, ValidationError, model_validator
 from sys import argv
-from parser import Hub, Map
+from parser import Hub, Connection, Map
 from pydantic import ValidationError
 
 
@@ -25,11 +25,12 @@ class Parser:
                     raise ParserError("Start_hub name isn't start or "
                                       "end_hub name isn't goal")
 
+                # valida o numero de drones
                 if key.startswith("nb_drones"):
                     Map.nb_drones = int(value.strip())
 
+                # valida hubs
                 elif "hub" in key:
-                    # verificar duplicatas de start/goal
                     if key == "start_hub":
                         self.start_count += 1
                         if self.start_count > 1:
@@ -39,6 +40,7 @@ class Parser:
                         if self.end_count > 1:
                             raise ParserError("Duplicate end_hub defined.")
 
+                    # valida os dados do hub e cria o objeto Hub
                     datas = ValidateDatas.hub_validate(key, value)
                     if len(datas) < 1:
                         raise TypeError(f"The '{key}' has no data.")
@@ -56,12 +58,17 @@ class Parser:
                     except ValidationError as e:
                         print(f"In hub_list: {e.errors()[0]["msg"]}")
                         exit(1)
+        # verifica se todos os hubs têm start e end definidos
         for hub in hub_list:
             hub.set_start_end()
 
+        print("--------Lista de hubs----------\n")
         print(*hub_list, sep="\n")
 
-        # fazer os conection
+        print("--------Lista de conexões----------\n")
+        connect_list: list[Connection] = []
+        connections = ValidateDatas.connection_validate(key,value)
+        print(*connect_list, sep="\n")
 
 
 class ValidateDatas:
@@ -119,7 +126,10 @@ class ValidateDatas:
 
         endpoints = raw.split("-")
         if len(endpoints) != 2 or not endpoints[0] or not endpoints[1]:
-            raise ParserError(f"Invalid connection format in: '{key}: {value}'")
+            raise ParserError(
+                f"Invalid connection format in: "
+                f"'{key}: {value}'"
+            )
 
         if len(brute_data) != 2:
             meta = None

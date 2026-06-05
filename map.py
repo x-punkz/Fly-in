@@ -42,9 +42,9 @@ class Connection(BaseModel):
     max_link_capacity: int = Field(default=1, ge=1)
 
 
-class Drone(BaseModel):
-    name: str = Field(...)
-
-
 class Map(BaseModel):
     nb_drones: int = Field(ge=1)
+
+
+class Drone(BaseModel):
+    name: str = Field(...)
