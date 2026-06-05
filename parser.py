@@ -36,6 +36,12 @@ class Hub(BaseModel):
             self.end_hub = True
 
 
+class Connection(BaseModel):
+    hub1: str = Field(...)
+    hub2: str = Field(...)
+    max_link_capacity: int = Field(default=1, ge=1)
+
+
 class Drone(BaseModel):
     name: str = Field(...)
 

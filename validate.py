@@ -107,8 +107,48 @@ class ValidateDatas:
 
         return (data, meta)
 
+    @staticmethod
     def connection_validate(key: str, value: str) -> tuple:
-        pass
+        key_names = ["max_link_capacity"]
+        value = value.strip()
+        brute_data = value.split("[")
+        raw = brute_data[0].strip()
+
+        if raw == '':
+            raise ParserError(" There is no data for the connection.")
+
+        endpoints = raw.split("-")
+        if len(endpoints) != 2 or not endpoints[0] or not endpoints[1]:
+            raise ParserError(f"Invalid connection format in: '{key}: {value}'")
+
+        if len(brute_data) != 2:
+            meta = None
+            pass
+        else:
+            brute_metadata = brute_data[1].strip().split("]")
+
+            if not brute_metadata[1]:
+                brute_metadata = [brute_metadata[0]]
+
+            if (len(brute_metadata) > 1
+                    and not brute_metadata[1].strip().startswith("#")):
+                raise ParserError(f"Many arguments in line in: \
+'{key}: {value}'")
+
+            meta = {k: v
+                    for k, v in (
+                        item.split("=")
+                        for item in brute_metadata[0].split()
+                    )}
+
+            if not len(meta) <= 1:
+                raise ParserError("Many Arguments in metadata!")
+
+            for mkey in meta.keys():
+                if mkey not in key_names:
+                    raise ParserError(f"'{mkey}' is not valid keys name")
+
+        return (endpoints, meta)
 
 
 def validate_input() -> None:
