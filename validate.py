@@ -20,10 +20,6 @@ class Parser:
         for line in self.config_file.splitlines():
             if line.strip() and not line.startswith("#"):
                 key, value = line.strip().split(":")
-                if ((key == "start_hub" and "start" not in value)
-                        or (key == "end_hub" and "goal" not in value)):
-                    raise ParserError("Start_hub name isn't start or "
-                                      "end_hub name isn't goal")
 
                 # valida o numero de drones
                 if key.startswith("nb_drones"):
@@ -31,6 +27,10 @@ class Parser:
 
                 # valida hubs
                 elif "hub" in key:
+                    if ((key == "start_hub" and "start" not in value)
+                            or (key == "end_hub" and "goal" not in value)):
+                        raise ParserError("Start_hub name isn't start or "
+                                          "end_hub name isn't goal")
                     if key == "start_hub":
                         self.start_count += 1
                         if self.start_count > 1:
@@ -45,29 +45,33 @@ class Parser:
                     if len(datas) < 1:
                         raise TypeError(f"The '{key}' has no data.")
                     data, meta_data = datas
-                    try:
-                        hub_list.append(
-                            Hub(
-                                name=data[0],
-                                x=data[1],
-                                y=data[2]
-                            )
+                    hub_list.append(Creator.create_hubs(data, meta_data))
+
+                # valida os dados da conexão e cria o objeto Connection
+                elif "connection" in key:
+                    connect_list: list[Connection] = []
+                    datas = ValidateDatas.connection_validate(key, value)
+                    if len(datas) < 1:
+                        raise TypeError(f"The '{key}' has no data.")
+                    endpoints, meta_data = datas
+                    connect_list.append(
+                        Connection(
+                            hub1=endpoints[0],
+                            hub2=endpoints[1],
+                            # rever isso aqui.
+                            max_link_capacity=meta_data["max_link_capacity"]
+                            if meta_data and "max_link_capacity" in meta_data
+                            else 1
                         )
-                        if meta_data:
-                            hub_list[len(hub_list) - 1].set_metadata(meta_data)
-                    except ValidationError as e:
-                        print(f"In hub_list: {e.errors()[0]["msg"]}")
-                        exit(1)
-        # verifica se todos os hubs têm start e end definidos
-        for hub in hub_list:
-            hub.set_start_end()
+                    )
+                    print("\n--------Lista de conexões----------")
+
+
 
         print("--------Lista de hubs----------\n")
         print(*hub_list, sep="\n")
 
-        print("--------Lista de conexões----------\n")
-        connect_list: list[Connection] = []
-        connections = ValidateDatas.connection_validate(key,value)
+        print("\n--------Lista de conexões----------")
         print(*connect_list, sep="\n")
 
 
@@ -159,6 +163,27 @@ class ValidateDatas:
                     raise ParserError(f"'{mkey}' is not valid keys name")
 
         return (endpoints, meta)
+
+
+class Creator:
+    def create_hubs(data: list[str], meta_data: dict[str, str]) -> Hub:
+        try:
+            hub = Hub(
+                    name=data[0],
+                    x=data[1],
+                    y=data[2]
+                )
+            if meta_data:
+                hub.set_metadata(meta_data)
+        except ValidationError as e:
+            print(f"In hub_list: {e.errors()[0]["msg"]}")
+            exit(1)
+        # verifica se todos os hubs têm start e end definidos
+        hub.set_start_end()
+        return hub
+
+    def create_connections() -> None:
+        pass
 
 
 def validate_input() -> None:
