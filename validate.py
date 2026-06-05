@@ -1,6 +1,6 @@
 # from pydantic import BaseModel, Field, ValidationError, model_validator
 from sys import argv
-from parser import Hub, Connection, Map
+from map import Hub, Connection, Map
 from pydantic import ValidationError
 
 
