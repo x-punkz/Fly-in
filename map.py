@@ -37,9 +37,13 @@ class Hub(BaseModel):
 
 
 class Connection(BaseModel):
-    hub1: str = Field(...)
-    hub2: str = Field(...)
+    start_point: str = Field(...)
+    end_point: str = Field(...)
     max_link_capacity: int = Field(default=1, ge=1)
+
+    def set_metadata(self, metadata: dict[str]) -> None:
+        if "max_link_capacity" in metadata:
+            self.max_link_capacity = metadata["max_link_capacity"]
 
 
 class Map(BaseModel):

@@ -17,6 +17,7 @@ class Parser:
 
     def parse(self) -> None:
         hub_list: list[Hub] = []
+        connect_list: list[Connection] = []
         for line in self.config_file.splitlines():
             if line.strip() and not line.startswith("#"):
                 key, value = line.strip().split(":")
@@ -49,24 +50,13 @@ class Parser:
 
                 # valida os dados da conexão e cria o objeto Connection
                 elif "connection" in key:
-                    connect_list: list[Connection] = []
                     datas = ValidateDatas.connection_validate(key, value)
                     if len(datas) < 1:
                         raise TypeError(f"The '{key}' has no data.")
                     endpoints, meta_data = datas
                     connect_list.append(
-                        Connection(
-                            hub1=endpoints[0],
-                            hub2=endpoints[1],
-                            # rever isso aqui.
-                            max_link_capacity=meta_data["max_link_capacity"]
-                            if meta_data and "max_link_capacity" in meta_data
-                            else 1
-                        )
+                        Creator.create_connections(endpoints, meta_data, hub_list)
                     )
-                    print("\n--------Lista de conexões----------")
-
-
 
         print("--------Lista de hubs----------\n")
         print(*hub_list, sep="\n")
@@ -166,6 +156,7 @@ class ValidateDatas:
 
 
 class Creator:
+    @staticmethod
     def create_hubs(data: list[str], meta_data: dict[str, str]) -> Hub:
         try:
             hub = Hub(
@@ -176,32 +167,49 @@ class Creator:
             if meta_data:
                 hub.set_metadata(meta_data)
         except ValidationError as e:
-            print(f"In hub_list: {e.errors()[0]["msg"]}")
+            print(f"In hub_list: {e.errors()[0]['msg']}")
             exit(1)
-        # verifica se todos os hubs têm start e end definidos
+        # verifica se todos os hubs têm start e end definidos. Se nao, define
         hub.set_start_end()
         return hub
 
-    def create_connections() -> None:
-        pass
+    @staticmethod
+    def create_connections(
+                           endpoints: list[str],
+                           meta_data: dict[str, str],
+                           possible_hubs: list[Hub]
+                           ) -> Connection:
+# ver essa verificaçao pq é nela q ta dando ruim. é tirar esse conection de dentro do try p ela poder existir
+        try:
+            for hubs in possible_hubs:
+                if endpoints[0] in hubs.name and endpoints[1] in hubs.name:
+                    connection = Connection(
+                                            start_point=endpoints[0],
+                                            end_point=endpoints[1])
+                    if meta_data:
+                        connection.set_metadata(meta_data)
+        except ValidationError as e:
+            print(f"In connect_list: {e.errors()[0]['msg']}")
+            exit(1)
+        return connection
 
 
 def validate_input() -> None:
     if len(argv) < 2:
         print("   Passe o arquivo de configuraçao!")
         exit(1)
-    try:
+    # try:
 
-        with open(argv[1]) as file:
-            config_file = file.read()
-            config_dict = Parser(config_file)
-            config_dict.parse()
-    except (Exception, ValidationError) as e:
+    with open(argv[1]) as file:
+        config_file = file.read()
+        config_dict = Parser(config_file)
+        config_dict.parse()
+    # except (Exception, ValidationError) as e:
         # PRECISO VER O ERRO DE VALIDATOR E DE EXCEPTION
         #     # if Exception:
-        print(e)
+        # print(e)
         #     # elif ValidationError:
-        exit(1)
+        # exit(1)
     return config_dict
 
 
