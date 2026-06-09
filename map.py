@@ -54,10 +54,32 @@ class Connection(BaseModel):
             self.max_link_capacity = metadata["max_link_capacity"]
 
 
-class Map(BaseModel):
-    nb_drones: int = Field(ge=1)
-
-
 class Drone(BaseModel):
     name: str = Field(...)
     current_hub: Hub = Field(...)
+
+
+class Map():
+    def __init__(self,
+                 list_hub: list[Hub],
+                 list_conex: list[Connection],
+                 nb_drone: int):
+
+        self.list_hub = list_hub
+        self.list_conex = list_conex
+        self.nb_drone = nb_drone
+        self.list_drone = self.create_drone()
+
+    def create_drone(self) -> list[Drone]:
+        drone_list: list[Drone] = []
+        for hub in self.list_hub:
+            if hub.name == "start":
+                start_hub = hub
+        for i in range(self.nb_drone):
+            drone_list.append(Drone(name=f"drone{i}", current_hub=start_hub))
+
+        return drone_list
+
+
+class App:
+    pass

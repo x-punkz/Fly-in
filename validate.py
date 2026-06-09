@@ -1,7 +1,5 @@
-# from pydantic import BaseModel, Field, ValidationError, model_validator
-from sys import argv
-from map import Hub, Connection, Map
 from pydantic import ValidationError
+from map import Hub, Connection
 
 
 class ParserError(Exception):
@@ -15,7 +13,7 @@ class Parser:
         self.start_count = 0
         self.end_count = 0
 
-    def parse(self) -> None:
+    def parse(self) -> tuple[list[Hub], list[Connection], int]:
         hub_list: list[Hub] = []
         connect_list: list[Connection] = []
         for line in self.config_file.splitlines():
@@ -24,7 +22,9 @@ class Parser:
 
                 # valida o numero de drones
                 if key.startswith("nb_drones"):
-                    Map.nb_drones = int(value.strip())
+                    if value.strip().isdigit() is False:
+                        raise ValueError("Drone number isn't an int.")
+                    nb_drone = int(value.strip())
 
                 # valida hubs
                 elif "hub" in key:
@@ -64,12 +64,13 @@ class Parser:
                             hub_list_name
                         )
                     )
-
+        # apagar esse prints depois.
         print("--------Lista de hubs----------\n")
         print(*hub_list, sep="\n")
 
         print("\n--------Lista de conexões----------\n")
         print(*connect_list, sep="\n")
+        return (hub_list, connect_list, nb_drone)
 
 
 class ValidateDatas:
@@ -232,25 +233,3 @@ the list of hubs.")
             print(f"In connect_list: {e.errors()[0]['msg']}")
             exit(1)
         return connection
-
-
-def validate_input() -> None:
-    if len(argv) < 2:
-        print("   Passe o arquivo de configuraçao!")
-        exit(1)
-    # try:
-
-    with open(argv[1]) as file:
-        config_file = file.read()
-        config_dict = Parser(config_file)
-        config_dict.parse()
-    # except (Exception, ValidationError) as e:
-        # PRECISO VER O ERRO DE VALIDATOR E DE EXCEPTION
-        #     # if Exception:
-        # print(e)
-        #     # elif ValidationError:
-        # exit(1)
-    return config_dict
-
-
-validate_input()
