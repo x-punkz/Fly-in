@@ -13,12 +13,19 @@ class Hub(BaseModel):
 
     @model_validator(mode="after")
     def _(self) -> 'Hub':
+        '''
+        Valida se o hub start e end estao no mesmo lugar.
+        '''
+
         if self.start_hub is True and self.end_hub is True:
-            print("primeiro if")
             raise ValueError("entrada e saida sao iguais")
         return self
 
     def set_metadata(self, metadata: dict[str]) -> None:
+        '''
+        Seta os metadados do hub.
+        '''
+
         if "color" in metadata:
             self.color = metadata["color"]
         if "max_drones" in metadata:
@@ -30,6 +37,7 @@ class Hub(BaseModel):
         '''
             Seta o hub como 'start' ou como 'end' se o 'name'
         '''
+
         if self.name == "start":
             self.start_hub = True
         elif self.name == "goal":
@@ -52,3 +60,4 @@ class Map(BaseModel):
 
 class Drone(BaseModel):
     name: str = Field(...)
+    current_hub: Hub = Field(...)

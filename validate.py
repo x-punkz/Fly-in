@@ -50,18 +50,25 @@ class Parser:
 
                 # valida os dados da conexão e cria o objeto Connection
                 elif "connection" in key:
+                    hub_list_name: list[str] = []
+                    for hub in hub_list:
+                        hub_list_name.append(hub.name)
                     datas = ValidateDatas.connection_validate(key, value)
                     if len(datas) < 1:
                         raise TypeError(f"The '{key}' has no data.")
                     endpoints, meta_data = datas
                     connect_list.append(
-                        Creator.create_connections(endpoints, meta_data, hub_list)
+                        Creator.create_connections(
+                            endpoints,
+                            meta_data,
+                            hub_list_name
+                        )
                     )
 
         print("--------Lista de hubs----------\n")
         print(*hub_list, sep="\n")
 
-        print("\n--------Lista de conexões----------")
+        print("\n--------Lista de conexões----------\n")
         print(*connect_list, sep="\n")
 
 
@@ -69,6 +76,12 @@ class ValidateDatas:
 
     @staticmethod
     def hub_validate(key: str, value: str) -> tuple:
+        '''
+            Valida os dados do vindos do arquivo de configuraçao do Hub.
+            Retorna:
+                Uma tupla contendo os dados e se existir, os metadados
+                para o hub.
+        '''
         key_names = ["zone", "color", "max_drones"]
         possible_zones = ["normal", "blocked", "restricted", "priority"]
         value = value.strip()
@@ -110,6 +123,12 @@ class ValidateDatas:
 
     @staticmethod
     def connection_validate(key: str, value: str) -> tuple:
+        '''
+            Valida os dados do vindos do arquivo de configuraçao da Conexão.
+            Retorna:
+                Uma tupla contendo os endpoints das conexões e se existir,
+                os metadados para a conexão.
+        '''
         key_names = ["max_link_capacity"]
         value = value.strip()
         brute_data = value.split("[")
@@ -158,6 +177,10 @@ class ValidateDatas:
 class Creator:
     @staticmethod
     def create_hubs(data: list[str], meta_data: dict[str, str]) -> Hub:
+        '''
+            Cria o objeto Hub a partir dos dados validados e adiciona
+            os metadados, se existir, e se o hub é start ou end.
+        '''
         try:
             hub = Hub(
                     name=data[0],
@@ -177,17 +200,34 @@ class Creator:
     def create_connections(
                            endpoints: list[str],
                            meta_data: dict[str, str],
-                           possible_hubs: list[Hub]
+                           possible_hubs_name: list[str]
                            ) -> Connection:
-# ver essa verificaçao pq é nela q ta dando ruim. é tirar esse conection de dentro do try p ela poder existir
+        '''
+            Cria a conexão a partir dos endpoints validados e existentes na
+            lista de hubs e adiciona os metadados, se existir.
+        '''
+
         try:
-            for hubs in possible_hubs:
-                if endpoints[0] in hubs.name and endpoints[1] in hubs.name:
-                    connection = Connection(
-                                            start_point=endpoints[0],
-                                            end_point=endpoints[1])
-                    if meta_data:
-                        connection.set_metadata(meta_data)
+            if len(endpoints) < 2:
+                raise ValueError("Not enough endpoints for a connection.")
+
+            if possible_hubs_name is None or len(possible_hubs_name) == 0:
+                raise ValueError("No hubs available to connect.")
+
+            if (endpoints[0] in possible_hubs_name and
+               endpoints[1] in possible_hubs_name):
+                connection = Connection(
+                    start_point=endpoints[0],
+                    end_point=endpoints[1]
+                )
+            else:
+                raise ParserError(f"The endpoint {endpoints[0]} or \
+{endpoints[1]} does not exist in \
+the list of hubs.")
+
+            if meta_data and connection is not None:
+                connection.set_metadata(meta_data)
+
         except ValidationError as e:
             print(f"In connect_list: {e.errors()[0]['msg']}")
             exit(1)
