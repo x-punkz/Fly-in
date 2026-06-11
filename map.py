@@ -6,6 +6,7 @@ class Hub(BaseModel):
     x: int = Field(...)
     y: int = Field(...)
     color: str = Field(default="blue")
+    image: str = Field(default="images/tower_blue.png")
     max_drones: int = Field(default=1, ge=1)
     zone: str = Field(default="normal")
     start_hub: bool = Field(default=False)
@@ -28,6 +29,7 @@ class Hub(BaseModel):
 
         if "color" in metadata:
             self.color = metadata["color"]
+            self.image = f"images/tower_{self.color}.png"
         if "max_drones" in metadata:
             self.max_drones = metadata["max_drones"]
         if "zone" in metadata:

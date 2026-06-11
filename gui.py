@@ -44,6 +44,7 @@ class App:
 
     def run(self) -> None:
         running: bool = True
+        maper = self.parse_file()
         while (running):
 
             for event in pygame.event.get():
@@ -59,6 +60,9 @@ class App:
                                                  (width, height))
             self.window.blit(change_size)
             self.game.blit(self.bg)
+            # for hub in maper.list_hub:
+            #     self.game.blit(pygame.image.load(hub.image)) p printar o hub
+            
 
             pygame.display.flip()
         pygame.quit()
