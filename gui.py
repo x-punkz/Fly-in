@@ -11,9 +11,9 @@ class App:
         icon = pygame.image.load("images/icon.png")
         pygame.display.set_icon(icon)
         # escolher a imagem e por o caminho aqui
-        self.bg = pygame.image.load("images/mapa.png")
+        self.bg = pygame.image.load("images/isomap.webp")
         # pygame.mixer.music.load() #  da p por musica
-        self.width, self.height = 1280, 1060
+        self.width, self.height = 1744, 768
         self.window = pygame.display.set_mode((self.width, self.height),
                                               pygame.RESIZABLE)
         self.virtual_window = pygame.Surface((self.width, self.height))
@@ -23,6 +23,17 @@ class App:
         self.menu.fill(game_color)
         menu_color = (128, 128, 128)
         self.menu.fill(menu_color)
+
+    @staticmethod
+    def coordenadas_giradas(x: float, y: float, unidade: float = 1) -> tuple[float, float]:
+        """
+        Converte coordenadas cartesianas (x, y) para um sistema isométrico rotacionado.
+        Fórmula: X = unidade * (x - y), Y = unidade * (x + y)
+        Retorna tupla (X, Y) em ponto flutuante.
+        """
+        X = unidade * (x*2 - y)
+        Y = unidade * (x + y*2)
+        return X, Y
 
     @staticmethod
     def parse_file() -> Map:
@@ -46,12 +57,22 @@ class App:
     def calc_screen_positions(self, mapper: Map) -> tuple[dict[str, tuple], int]:
         '''
             Calcula as posicoes das coordenadas p printar na tela
+            Agora aplicando uma transformação isométrica (coordenadas giradas)
+            antes de calcular a escala e posicionamento na tela.
         '''
 
         gw, gh = int(self.game.get_width()), int(self.game.get_height())
-        # xs, ys = coord x,y no screen
-        xs = [int(h.x) for h in mapper.list_hub]
-        ys = [int(h.y) for h in mapper.list_hub]
+
+        # Cria um dicionário com as coordenadas rotacionadas (isométricas)
+        rotated_coords: dict[str, tuple[float, float]] = {
+            hub.name: self.coordenadas_giradas(float(hub.x), float(hub.y), unidade=1)
+            for hub in mapper.list_hub
+        }
+
+        # extrai listas X e Y rotacionadas para calcular limites
+        xs = [coord[0] for coord in rotated_coords.values()]
+        ys = [coord[1] for coord in rotated_coords.values()]
+
         min_x, max_x = min(xs), max(xs)
         min_y, max_y = min(ys), max(ys)
 
@@ -70,23 +91,25 @@ class App:
         scale_y = (gh - 2*pad) / dy
         scale = int(min(scale_x, scale_y))
 
-        def to_screen(x: int, y: int) -> tuple[int, int]:
-            sx = pad + (int(x) - min_x) * scale
-            sy = gh - (pad + (int(y) - min_y) * scale)  # inverte y
+        def to_screen(rot_x: float, rot_y: float) -> tuple[int, int]:
+            # transforma coordenadas rotacionadas em pixels na surface self.game
+            sx = pad + (rot_x - min_x) * scale
+            sy = gh - (pad + (rot_y - min_y) * scale)  # inverte y para tela
             return int(sx), int(sy)
 
-        positions = {
-            hub.name: to_screen(hub.x, hub.y) for hub in mapper.list_hub
-        }
-        if 'start' in positions:
-            oy = gh // 2 - positions['start'][1]
-            positions = {k: (v[0], v[1] + oy) for k, v in positions.items()}
+        # calcula posicoes na tela a partir das coordenadas rotacionadas
+        positions = {name: to_screen(*coord) for name, coord in rotated_coords.items()}
+
+        # manter comportamento anterior: centralizar em relação ao hub 'start' se existir
+        # if 'start' in positions:
+        #     oy = gh // 2 - positions['start'][1]
+        #     positions = {k: (v[0], v[1] + oy) for k, v in positions.items()}
         return positions, scale
 
     def draw_map(self, mapper: Map) -> None:
         positions, scale = self.calc_screen_positions(mapper)
         baseline = 50
-        icon_size = max(16, int(32 * (scale / baseline)))
+        icon_size = max(16, int(64 * (scale / baseline)))
         # largura da linha
         # line_w = max(1, int(4 * (scale / baseline)))
 
