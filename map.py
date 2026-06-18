@@ -33,7 +33,7 @@ class Hub(BaseModel):
 
         palette = {
             "black": (0, 0, 0),
-            "blue": (0, 128, 255),
+            "blue": (30, 144, 255),
             "brown": (165, 42, 42),
             "crimson": (220, 20, 60),
             "darkred": (139, 0, 0),
@@ -49,9 +49,18 @@ class Hub(BaseModel):
             "yellow": (255, 255, 0),
             "cyan": (0, 255, 255)
         }
-
-        base = Image.open(f"{self.model}_base.png").convert("RGBA")
-        mask = Image.open(f"{self.model}_mask.png").convert("L")
+        if self.start_hub is True:
+            base = Image.open("images/hubs/start_base.png").convert("RGBA")
+            mask = Image.open("images/hubs/start_mask.png").convert("L")
+        elif self.name == "goal":
+            # if self.color == "rainbow":
+            #     base = Image.open("end_base.png").convert("RGBA")
+            #     mask = Image.open("end_mask.png").convert("L")
+            base = Image.open("images/hubs/end_base.png").convert("RGBA")
+            mask = Image.open("images/hubs/end_mask.png").convert("L")
+        else:
+            base = Image.open(f"{self.model}_base.png").convert("RGBA")
+            mask = Image.open(f"{self.model}_mask.png").convert("L")
 
         color = palette[self.color]
 
@@ -69,7 +78,7 @@ class Hub(BaseModel):
         '''
 
         models = {
-            "restricted": "images/hubs/restrict",
+            "restricted": "images/hubs/restricted",
             "priority": "images/hubs/priority",
             "blocked": "images/hubs/blocked",
             "normal": "images/hubs/normal",
