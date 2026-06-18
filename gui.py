@@ -11,9 +11,14 @@ class App:
         icon = pygame.image.load("images/icon.png")
         pygame.display.set_icon(icon)
         # escolher a imagem e por o caminho aqui
-        self.bg = pygame.image.load("images/isomap.webp")
+        self.bg = pygame.image.load("images/map/iso.png")
         # pygame.mixer.music.load() #  da p por musica
-        self.width, self.height = 1744, 768
+
+        screen_info: pygame.display._VidInfo = pygame.display.Info()
+        self.width: int = int(screen_info.current_w)
+        self.height: int = int(1016)
+
+        # self.width, self.height = 1744, 768
         self.window = pygame.display.set_mode((self.width, self.height),
                                               pygame.RESIZABLE)
         self.virtual_window = pygame.Surface((self.width, self.height))
@@ -127,12 +132,26 @@ class App:
             pos_x = pos[0]
             pos_y = pos[1]
             try:
-                img = pygame.image.load(hub.image).convert_alpha()
+                pil_img = hub.mount_image_hub()
+                mode = pil_img.mode
+                size = pil_img.size
+                data = pil_img.tobytes()
+
+                img = pygame.image.fromstring(
+                    data,
+                    size,
+                    mode
+                )
+                # talvez voltar para o de baixo
+                # img = pygame.image.load(hub.model).convert_alpha()
                 # Ajusta o tamanho
                 img = pygame.transform.scale(img, (icon_size, icon_size))
                 self.game.blit(img,  (pos_x - img.get_width()//2,
                                       pos_y - img.get_height()//2))
-            except Exception:
+            except Exception as e:
+                print("ERROR HUB:")
+                print(e)
+
                 pygame.draw.circle(self.game, (0, 120, 250), pos, icon_size // 2)
 
     def run(self) -> None:

@@ -65,11 +65,11 @@ class Parser:
                         )
                     )
         # apagar esse prints depois.
-        print("--------Lista de hubs----------\n")
-        print(*hub_list, sep="\n")
+        # print("--------Lista de hubs----------\n")
+        # print(*hub_list, sep="\n")
 
-        print("\n--------Lista de conexões----------\n")
-        print(*connect_list, sep="\n")
+        # print("\n--------Lista de conexões----------\n")
+        # print(*connect_list, sep="\n")
         return (hub_list, connect_list, nb_drone)
 
 
