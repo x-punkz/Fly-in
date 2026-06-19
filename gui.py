@@ -134,7 +134,7 @@ class App:
         #     pos,
         #     20
         # )
-        img = pygame.transform.scale(self.drone_img, (40, 40))
+        img = pygame.transform.scale(self.drone_img, (300, 300))
 
         self.game.blit(
             img,
