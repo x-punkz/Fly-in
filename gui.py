@@ -197,13 +197,13 @@ class App:
         frame_count = 0
         while running:
 
+            frame_count += 1
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
 
             if frame_count % 120 == 0:
                 mapper.move_drone()
-            frame_count += 1
 
             self.game.blit(self.bg,  (0, 0))
             self.draw_map(mapper)
