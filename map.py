@@ -1,5 +1,6 @@
 from pydantic import Field, BaseModel, model_validator
 from PIL import Image
+from collections import deque
 
 
 class Hub(BaseModel):
@@ -42,6 +43,7 @@ class Hub(BaseModel):
             "lime": (191, 255, 0),
             "magenta": (255, 0, 255),
             "maroon": (128, 0, 0),
+            "rainbow": (106, 90, 205),
             "orange": (255, 128, 0),
             "purple": (128, 0, 128),
             "red": (255, 0, 0),
@@ -49,15 +51,18 @@ class Hub(BaseModel):
             "yellow": (255, 255, 0),
             "cyan": (0, 255, 255)
         }
-        if self.start_hub is True:
+        if self.name == "start":
             base = Image.open("images/hubs/start_base.png").convert("RGBA")
             mask = Image.open("images/hubs/start_mask.png").convert("L")
+
         elif self.name == "goal":
-            # if self.color == "rainbow":
-            #     base = Image.open("end_base.png").convert("RGBA")
-            #     mask = Image.open("end_mask.png").convert("L")
             base = Image.open("images/hubs/end_base.png").convert("RGBA")
             mask = Image.open("images/hubs/end_mask.png").convert("L")
+
+        elif self.name == "impossible_goal":
+            base = Image.open("images/hubs/rainbow_hub.png").convert("RGBA")
+            mask = Image.open("images/hubs/rb_hub.png").convert("L")
+
         else:
             base = Image.open(f"{self.model}_base.png").convert("RGBA")
             mask = Image.open(f"{self.model}_mask.png").convert("L")
@@ -87,14 +92,7 @@ class Hub(BaseModel):
         }
 
         if "color" in metadata:
-            if metadata["color"] == "rainbow":
-                 return Image.open("images/hubs/rainbow_hub.png"
-                                   ).convert("RGBA")
-                # self.color = metadata["color"]
-                # # self.model = "images/hubs/rainbow_hub.png"
-            else:
-                self.color = metadata["color"]
-                # self.model = f"images/hubs/{self.model}"
+            self.color = metadata["color"]
 
         if "max_drones" in metadata:
             self.max_drones = metadata["max_drones"]
@@ -128,6 +126,8 @@ class Drone(BaseModel):
     name: str = Field(...)
     current_hub: Hub = Field(...)
     image: str = "images/drone/drone.png"
+    path: list[str] = []
+    path_index: int = 0
 
 
 class Map():
@@ -140,18 +140,83 @@ class Map():
         self.list_conex = list_conex
         self.nb_drone = nb_drone
         self.list_drone = self.create_drone()
+        # print("Rota encontrada:", self.find_path())
 
         for hub in self.list_hub:
             hub.mount_image_hub()
 
+    def create_graph(self) -> list[str]:
+        graph = {}
+
+        for conn in self.list_conex:
+            start = conn.start_point
+            end = conn.end_point
+
+            if start not in graph:
+                graph[start] = []
+
+            if end not in graph:
+                graph[end] = []
+
+            graph[start].append(end)
+            graph[end].append(start)
+        return graph
+
+    def get_hub_by_name(self, name) -> Hub | None:
+        for hub in self.list_hub:
+            if hub.name == name:
+                return hub
+        return None
+
+    def find_path(self) -> list[str]:
+        graph = self.create_graph()
+
+        queue = deque()
+        queue.append(("start", ["start"]))
+
+        visited = []
+
+        while queue:
+            # popleft remove e devolve o primeiro elemento da fila
+            current, path = queue.popleft()
+            if current == "goal":
+                return path
+
+            if current not in visited:
+                visited.append(current)
+                for neighbor in graph[current]:
+                    if neighbor not in visited:
+                        new_path = path + [neighbor]
+                        queue.append((neighbor, new_path))
+        return []
+
     def create_drone(self) -> list[Drone]:
         drone_list: list[Drone] = []
-        # Conferir este list hub no current_hub, pq tem q ser start_hub
-        for i in range(self.nb_drone):
-            drone_list.append(Drone(name=f"drone{i}", current_hub=self.list_hub[0]))
+        start_hub = self.get_hub_by_name("start")
+        route = self.find_path()
+
+        drone = Drone(name="drone1", current_hub=start_hub)
+
+        drone.path = route
+        drone.path_index == 0
+
+        drone_list.append(drone)
+        # Vou usar quando fizer varios drones
+        # for i in range(self.nb_drone):
+        #     drone_list.append(
+        #         Drone(
+        #             name=f"drone{i}",
+        #             current_hub=hub)
+        #             )
 
         return drone_list
 
+    def move_drone(self):
+        drone = self.list_drone[0]
+        if drone.path_index >= len(drone.path) - 1:
+            return
 
-class App:
-    pass
+        drone.path_index += 1
+        next_hub_name = drone.path[drone.path_index]
+        next_hub = self.get_hub_by_name(next_hub_name)
+        drone.current_hub = next_hub
