@@ -1,6 +1,7 @@
 from pydantic import Field, BaseModel, model_validator
 from PIL import Image
 from collections import deque
+import pygame
 
 
 class Hub(BaseModel):
@@ -126,8 +127,13 @@ class Drone(BaseModel):
     name: str = Field(...)
     current_hub: Hub = Field(...)
     image: str = "images/drone/drone.png"
+    screen_x: float = 0
+    screen_y: float = 0
+    target_hub: Hub | None = None
     path: list[str] = []
     path_index: int = 0
+    start_delay: int = 0
+    active: bool = False
 
 
 class Map():
@@ -195,28 +201,33 @@ class Map():
         start_hub = self.get_hub_by_name("start")
         route = self.find_path()
 
-        drone = Drone(name="drone1", current_hub=start_hub)
-
-        drone.path = route
-        drone.path_index == 0
-
-        drone_list.append(drone)
-        # Vou usar quando fizer varios drones
-        # for i in range(self.nb_drone):
-        #     drone_list.append(
-        #         Drone(
-        #             name=f"drone{i}",
-        #             current_hub=hub)
-        #             )
+        for i in range(self.nb_drone):
+            drone = Drone(
+                name=f"drone{i}",
+                current_hub=start_hub,
+                path_index=0,
+                path=route,
+                start_delay=i * 2,  # cada drone espera 2 movimentos
+                active=(i == 0)
+            )
+            drone_list.append(drone)
 
         return drone_list
 
     def move_drone(self):
-        drone = self.list_drone[0]
-        if drone.path_index >= len(drone.path) - 1:
-            return
+        for drone in self.list_drone:
+            if not drone.active:
+                drone.start_delay -= 1
+                if drone.start_delay <= 0:
+                    drone.active = True
+                continue
 
-        drone.path_index += 1
-        next_hub_name = drone.path[drone.path_index]
-        next_hub = self.get_hub_by_name(next_hub_name)
-        drone.current_hub = next_hub
+            if drone.path_index >= len(drone.path) - 1:
+                continue
+
+            drone.path_index += 1
+            next_hub_name = drone.path[drone.path_index]
+            next_hub = self.get_hub_by_name(next_hub_name)
+            # aqui ele nao muda de hub direto
+            # so define p onde quer ir
+            drone.target_hub = next_hub

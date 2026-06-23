@@ -14,7 +14,6 @@ class App:
         self.bg = pygame.image.load("images/map/iso.png")
         # pygame.mixer.music.load() #  da p por musica
         self.drone_img = pygame.image.load("images/drone/drone.png")  # .convert_alpha()
-        print(self.drone_img.get_size())
         screen_info: pygame.display._VidInfo = pygame.display.Info()
         self.width: int = int(screen_info.current_w)
         self.height: int = int(1016)
@@ -125,29 +124,68 @@ class App:
 
     def draw_drone(self, mapper: Map) -> None:
         positions, _ = self.calc_screen_positions(mapper)
-        drone = mapper.list_drone[0]
-        pos = positions[drone.current_hub.name]
+        for i, drone in enumerate(mapper.list_drone):
+            pos = (drone.screen_x, drone.screen_y)
 
-        # pygame.draw.circle(
-        #     self.game,
-        #     (255, 255, 0),
-        #     pos,
-        #     20
-        # )
-        img = pygame.transform.scale(self.drone_img, (300, 300))
+            offset_x = i * 15
+            offset_y = i * 10
+            img = pygame.transform.scale(self.drone_img, (300, 300))
 
-        self.game.blit(
-            img,
-            (
-                pos[0] - img.get_width() // 2,
-                pos[1] - img.get_height() // 2
+            # self.game.blit(
+            #     img,
+            #     (
+            #         pos[0] - img.get_width() // 2,
+            #         pos[1] - img.get_height() // 2
+            #     )
+            #  usar quando usar offset
+            self.game.blit(
+                img,
+                (
+                    pos[0] - img.get_width() // 2 + offset_x,
+                    pos[1] - img.get_height() // 2 + offset_y
+                )
             )
-        )
+
+    def animate_drones(self, mapper: Map) -> None:
+        '''
+            Anima os drones fazendo eles andarem alguns pixels por frame
+        '''
+        positions, _ = self.calc_screen_positions(mapper)
+        speed = 5
+
+        for drone in mapper.list_drone:
+            if drone.target_hub is None:
+                continue
+
+            target_pos = positions[drone.target_hub.name]
+            target_x = target_pos[0]
+            target_y = target_pos[1]
+
+            # dx,dy == distancia horiz e distancia vert
+            dx = target_x - drone.screen_x
+            dy = target_y - drone.screen_y
+
+            if abs(dx) <= speed and abs(dy) <= speed:
+                drone.screen_x = target_x
+                drone.screen_y = target_y
+
+                drone.current_hub = drone.target_hub
+                drone.target_hub = None
+            else:
+                if dx > 0:
+                    drone.screen_x += speed
+                elif dx < 0:
+                    drone.screen_x -= speed
+                if dy > 0:
+                    drone.screen_y += speed
+                elif dy < 0:
+                    drone.screen_y -= speed
 
     def draw_map(self, mapper: Map) -> None:
         positions, scale = self.calc_screen_positions(mapper)
-        baseline = 50
-        icon_size = max(16, int(64 * (scale / baseline)))
+        baseline = 200
+        # tamanho dos predios, (max(...))scalonado ou (baseline)fixo
+        icon_size = baseline  # max(16, int(64 * (scale / baseline)))
         # largura da linha
         # line_w = max(1, int(4 * (scale / baseline)))
 
@@ -157,8 +195,11 @@ class App:
             end_p = positions.get(conn.end_point)
             if start_p and end_p:
                 pygame.draw.line(self.game,
-                                 (0, 0, 0),
-                                 start_p, end_p, width=4)
+                                 (255, 0, 255),
+                                 start_p, end_p, width=3)
+                pygame.draw.line(self.game,
+                                 (255, 255, 255),
+                                 start_p, end_p, width=1)
         # Desenhar hubs (imagem centralizada ou circulo)
         for hub in mapper.list_hub:
             pos = positions[hub.name]
@@ -195,6 +236,14 @@ class App:
         mapper = self.parse_file()
         # print(mapper.find_path()) p ver se o caminho ta certo.
         frame_count = 0
+
+        # Fazer drone se mover animado
+        positions, _ = self.calc_screen_positions(mapper)
+        for drone in mapper. list_drone:
+            start_pos = positions["start"]
+            drone.screen_x = start_pos[0]
+            drone.screen_y = start_pos[1]
+
         while running:
 
             frame_count += 1
@@ -202,8 +251,10 @@ class App:
                 if event.type == pygame.QUIT:
                     running = False
 
-            if frame_count % 120 == 0:
+            if frame_count % 60 == 0:
                 mapper.move_drone()
+
+            self.animate_drones(mapper)
 
             self.game.blit(self.bg,  (0, 0))
             self.draw_map(mapper)
@@ -224,8 +275,11 @@ class App:
 
 
 def main() -> None:
-    tela = App()
-    tela.run()
+    try:
+        tela = App()
+        tela.run()
+    except Exception:
+        print("Image file not found!")
 
 
 if __name__ == "__main__":
