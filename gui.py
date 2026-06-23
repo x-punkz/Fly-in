@@ -172,14 +172,12 @@ class App:
                 drone.current_hub = drone.target_hub
                 drone.target_hub = None
             else:
-                if dx > 0:
-                    drone.screen_x += speed
-                elif dx < 0:
-                    drone.screen_x -= speed
-                if dy > 0:
-                    drone.screen_y += speed
-                elif dy < 0:
-                    drone.screen_y -= speed
+                distance = (dx * dx + dy * dy) ** 0.5
+                dir_x = dx / distance
+                dir_y = dy / distance
+
+                drone.screen_x += dir_x * speed
+                drone.screen_y += dir_y * speed
 
     def draw_map(self, mapper: Map) -> None:
         positions, scale = self.calc_screen_positions(mapper)
