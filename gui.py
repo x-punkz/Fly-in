@@ -122,9 +122,11 @@ class App:
 
         def to_screen(rot_x: float, rot_y: float) -> tuple[int, int]:
 
-            center_y = game_h * 0.85
+            # por o centro do mapa de hubs onde eu quiser
+            center_y = game_h * 0.90
 
-            sx = (rot_x - start_x) * scale + game_w * 0.15
+            # empurra horizontalmente o mapa de hubs
+            sx = (rot_x - start_x) * scale + game_w * 0.20
 
             sy = center_y - (rot_y - start_y) * scale
 
@@ -135,17 +137,13 @@ class App:
             name: to_screen(*coord) for name, coord in rotated_coords.items()
             }
 
-        # manter comportamento anterior: centralizar em relação ao hub 'start'
-        # se existir
-        # if 'start' in positions:
-        #     oy = game_h // 2 - positions['start'][1]
-        #     positions = {k: (v[0], v[1] + oy) for k, v in positions.items()}
         return positions, scale
 
     def draw_drone(self, mapper: Map) -> None:
         '''
             desenha os drones na tela
         '''
+
         # positions, _ = self.calc_screen_positions(mapper)
         for i, drone in enumerate(mapper.list_drone):
             pos = (drone.screen_x, drone.screen_y)

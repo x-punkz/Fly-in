@@ -1,7 +1,6 @@
 from pydantic import Field, BaseModel, model_validator
 from PIL import Image
 from collections import deque
-import pygame
 
 
 class Hub(BaseModel):
