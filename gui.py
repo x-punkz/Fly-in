@@ -57,7 +57,6 @@ class App:
             # PRECISO VER O ERRO DE VALIDATOR E DE EXCEPTION
             #     # if Exception:
             print(e)
-            #     # elif ValidationError:
             exit(1)
 
         return Map(list_hub=hubs, list_conex=connections, nb_drone=nb_drone)
@@ -70,7 +69,8 @@ class App:
             antes de calcular a escala e posicionamento na tela.
         '''
 
-        game_w, game_h = int(self.game.get_width()), int(self.game.get_height())
+        game_w = int(self.game.get_width())
+        game_h = int(self.game.get_height())
 
         # Cria um dicionário com as coordenadas rotacionadas (isométricas)
         rotated_coords: dict[str, tuple[float, float]] = {
@@ -79,35 +79,55 @@ class App:
                                                unidade=1)
             for hub in mapper.list_hub
         }
+        # dica do gepeto pro caminho ocupar 75% da cidade
+        start_x, start_y = rotated_coords["start"]
+        if "impossible_goal" in rotated_coords:
+            goal_x, goal_y = rotated_coords["impossible_goal"]
+        else:
+            goal_x, goal_y = rotated_coords["goal"]
 
-        # extrai listas X e Y rotacionadas para calcular limites
-        xs = [coord[0] for coord in rotated_coords.values()]
+        route_width = max(1, abs(goal_x - start_x))
+        scale = (game_w * 0.75) / route_width
+
+        # limitador vertical tbm
         ys = [coord[1] for coord in rotated_coords.values()]
+        route_height = max(ys) - min(ys)
 
-        min_x, max_x = min(xs), max(xs)
-        min_y, max_y = min(ys), max(ys)
+        scale_height = (game_h * 0.70) / max(1, route_height)
 
-        # dx,dy = sao x,y em unidades do mapa, o 1 no max/min eh uma protecao
-        # por zero, caso os hubs tenham a msm x ou y,dx/dy vira 0
-        dx = max(1, max_x - min_x)
-        dy = max(1, max_y - min_y)
+        scale = min(scale, scale_height)
+
+        # # extrai listas X e Y rotacionadas para calcular limites
+        # xs = [coord[0] for coord in rotated_coords.values()]
+        # ys = [coord[1] for coord in rotated_coords.values()]
+
+        # min_x, max_x = min(xs), max(xs)
+        # min_y, max_y = min(ys), max(ys)
+
+        # # dx,dy = sao x,y em unidades do mapa, o 1 no max/min eh uma protecao
+        # # por zero, caso os hubs tenham a msm x ou y,dx/dy vira 0
+        # dx = max(1, max_x - min_x)
+        # dy = max(1, max_y - min_y)
 
         # Pad é a margem (em pixels) entre as bordas da Surface e o mapa usada
         #   ao calcular a escala.
         # Serve para evitar que hubs/conexões encostem nas bordas e para dar
         #   espaço/centralizar o desenho.
-        pad = 50
+        pad = 20
 
-        scale_x = (game_w - 2*pad) / dx
-        scale_y = (game_h - 2*pad) / dy
-        scale = int(min(scale_x, scale_y))
+        # apagar talvez
+        # scale_x = (game_w - 2*pad) / dx
+        # scale_y = (game_h - 2*pad) / dy
+        # scale = int(min(scale_x, scale_y))
 
         def to_screen(rot_x: float, rot_y: float) -> tuple[int, int]:
-            # transforma coordenadas rotacionadas em
-            # pixels na surface self.game
-            sx = pad + (rot_x - min_x) * scale
-            # inverte y para tela
-            sy = game_h - (pad + (rot_y - min_y) * scale)
+
+            center_y = game_h * 0.85
+
+            sx = (rot_x - start_x) * scale + game_w * 0.15
+
+            sy = center_y - (rot_y - start_y) * scale
+
             return int(sx), int(sy)
 
         # calcula posicoes na tela a partir das coordenadas rotacionadas
@@ -123,7 +143,10 @@ class App:
         return positions, scale
 
     def draw_drone(self, mapper: Map) -> None:
-        positions, _ = self.calc_screen_positions(mapper)
+        '''
+            desenha os drones na tela
+        '''
+        # positions, _ = self.calc_screen_positions(mapper)
         for i, drone in enumerate(mapper.list_drone):
             pos = (drone.screen_x, drone.screen_y)
 
@@ -180,10 +203,20 @@ class App:
                 drone.screen_y += dir_y * speed
 
     def draw_map(self, mapper: Map) -> None:
-        positions, scale = self.calc_screen_positions(mapper)
-        baseline = 200
-        # tamanho dos predios, (max(...))scalonado ou (baseline)fixo
-        icon_size = baseline  # max(16, int(64 * (scale / baseline)))
+        '''
+            Desenha o mapa completo
+        '''
+        positions, _ = self.calc_screen_positions(mapper)
+
+        num_hubs = len(mapper.list_hub)
+
+        # baseline = 200
+
+        # tamanho dos predios, calc o tamanho e depois limita no maximo
+        icon_size = int(1200 / (num_hubs ** 0.5))
+        icon_size = max(100, min(icon_size, 220))
+        # icon_size = max(80, min(180, int(scale * 0.8)))
+        # icon_size = baseline  # max(16, int(64 * (scale / baseline)))
         # largura da linha
         # line_w = max(1, int(4 * (scale / baseline)))
 
@@ -214,8 +247,6 @@ class App:
                     size,
                     mode
                 )
-                # talvez voltar para o de baixo
-                # img = pygame.image.load(hub.model).convert_alpha()
                 # Ajusta o tamanho
                 img = pygame.transform.scale(img, (icon_size, icon_size))
                 self.game.blit(img,  (pos_x - img.get_width()//2,
@@ -230,6 +261,9 @@ class App:
                     pos, icon_size // 2)
 
     def run(self) -> None:
+        '''
+            Roda o programa
+        '''
         running: bool = True
         mapper = self.parse_file()
         # print(mapper.find_path()) p ver se o caminho ta certo.
@@ -273,11 +307,11 @@ class App:
 
 
 def main() -> None:
-    try:
+    # try:
         tela = App()
         tela.run()
-    except Exception:
-        print("Image file not found!")
+    # except Exception:
+        # print("Image file not found!")
 
 
 if __name__ == "__main__":
