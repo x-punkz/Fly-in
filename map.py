@@ -95,7 +95,14 @@ class Hub(BaseModel):
             self.color = metadata["color"]
 
         if "max_drones" in metadata:
-            self.max_drones = metadata["max_drones"]
+            try:
+                self.max_drones = int(metadata["max_drones"])
+
+            except ValueError:
+                raise ValueError(
+                    f"'{metadata['max_drones']}' "
+                    "is not a valid max_drones value"
+                )
 
         if "zone" in metadata:
             self.zone = metadata["zone"]
@@ -116,10 +123,11 @@ class Connection(BaseModel):
     start_point: str = Field(...)
     end_point: str = Field(...)
     max_link_capacity: int = Field(default=1, ge=1)
+    drones_on_link: list[str] = []
 
     def set_metadata(self, metadata: dict[str]) -> None:
         if "max_link_capacity" in metadata:
-            self.max_link_capacity = metadata["max_link_capacity"]
+            self.max_link_capacity = int(metadata["max_link_capacity"])
 
 
 class Drone(BaseModel):
@@ -131,8 +139,11 @@ class Drone(BaseModel):
     target_hub: Hub | None = None
     path: list[str] = []
     path_index: int = 0
-    start_delay: int = 0
     active: bool = False
+    current_connection: str | None = None
+    queue_position: int = 0
+    waiting_turns: int = 0
+    moving: bool = False
 
 
 class Map():
@@ -173,6 +184,15 @@ class Map():
                 return hub
         return None
 
+    def drones_in_hub(self, hub_name: str) -> int:
+        count = 0
+
+        for drone in self.list_drone:
+            if drone.current_hub.name == hub_name:
+                count += 1
+
+        return count
+
     def find_path(self) -> list[str]:
         graph = self.create_graph()
 
@@ -206,27 +226,108 @@ class Map():
                 current_hub=start_hub,
                 path_index=0,
                 path=route,
-                start_delay=i * 2,  # cada drone espera 2 movimentos
-                active=(i == 0)
+                active=False
             )
             drone_list.append(drone)
 
         return drone_list
 
-    def move_drone(self):
+    def get_connection(self, start, end) -> Connection | None:
+        for conn in self.list_conex:
+            if (
+                (conn.start_point == start and conn.end_point == end)
+                or
+                (conn.start_point == end and conn.end_point == start)
+            ):
+                return conn
+        return None
+
+    def release_start_drones(self) -> None:
+        if len(self.list_drone) == 0:
+            return
+
+        if (
+            len(self.list_drone) == 0
+            or len(self.list_drone[0].path) < 2
+        ):
+            return
+
+        first_conn = self.get_connection(
+            self.list_drone[0].path[0],
+            self.list_drone[0].path[1]
+        )
+
+        free_slots = (
+            first_conn.max_link_capacity
+            - len(first_conn.drones_on_link)
+        )
+
+        waiting = [
+            drone for drone in self.list_drone
+            if not drone.active
+        ]
+
+        for drone in waiting[:free_slots]:
+            drone.active = True
+            first_conn.drones_on_link.append(drone.name)
+            drone.current_connection = (
+                f"{first_conn.start_point}-{first_conn.end_point}"
+            )
+
+    def move_drone(self) -> None:
+        self.release_start_drones()
         for drone in self.list_drone:
+            if drone.moving:
+                continue
+
+            if drone.waiting_turns > 0:
+                drone.waiting_turns -= 1
+                continue
+
             if not drone.active:
-                drone.start_delay -= 1
-                if drone.start_delay <= 0:
-                    drone.active = True
                 continue
 
             if drone.path_index >= len(drone.path) - 1:
                 continue
+            current_name = drone.path[drone.path_index]
+            next_name = drone.path[drone.path_index + 1]
 
-            drone.path_index += 1
-            next_hub_name = drone.path[drone.path_index]
-            next_hub = self.get_hub_by_name(next_hub_name)
-            # aqui ele nao muda de hub direto
-            # so define p onde quer ir
+            next_connection = self.get_connection(
+                current_name,
+                next_name
+            )
+            if next_connection is None:
+                continue
+
+            next_hub = self.get_hub_by_name(next_name)
+
+            if next_hub.zone == "blocked":
+                continue
+
+            if self.drones_in_hub(next_hub.name) >= next_hub.max_drones:
+                continue
+
+            if drone.name not in next_connection.drones_on_link:
+
+                if (
+                    len(next_connection.drones_on_link)
+                    >= next_connection.max_link_capacity
+                ):
+                    continue
+
+                if drone.current_connection:
+                    for conn in self.list_conex:
+                        if drone.name in conn.drones_on_link:
+                            conn.drones_on_link.remove(drone.name)
+                            break
+                next_connection.drones_on_link.append(drone.name)
+
+                drone.current_connection = (
+                    f"{next_connection.start_point}"
+                    f"-{next_connection.end_point}"
+                )
+
             drone.target_hub = next_hub
+            drone.moving = True
+
+        self.release_start_drones()

@@ -1,5 +1,5 @@
 from validate import Parser
-from map import Hub, Connection, Drone, Map
+from map import Map
 from sys import argv
 import pygame
 
@@ -97,28 +97,11 @@ class App:
 
         scale = min(scale, scale_height)
 
-        # # extrai listas X e Y rotacionadas para calcular limites
-        # xs = [coord[0] for coord in rotated_coords.values()]
-        # ys = [coord[1] for coord in rotated_coords.values()]
-
-        # min_x, max_x = min(xs), max(xs)
-        # min_y, max_y = min(ys), max(ys)
-
-        # # dx,dy = sao x,y em unidades do mapa, o 1 no max/min eh uma protecao
-        # # por zero, caso os hubs tenham a msm x ou y,dx/dy vira 0
-        # dx = max(1, max_x - min_x)
-        # dy = max(1, max_y - min_y)
-
-        # Pad é a margem (em pixels) entre as bordas da Surface e o mapa usada
-        #   ao calcular a escala.
-        # Serve para evitar que hubs/conexões encostem nas bordas e para dar
-        #   espaço/centralizar o desenho.
-        pad = 20
-
-        # apagar talvez
-        # scale_x = (game_w - 2*pad) / dx
-        # scale_y = (game_h - 2*pad) / dy
-        # scale = int(min(scale_x, scale_y))
+        # tentando aumentar a altura p mapas largos
+        ratio = route_width / max(1, route_height)
+        vertical_factor = 1.0
+        if ratio > 1.8:
+            vertical_factor = 1.35
 
         def to_screen(rot_x: float, rot_y: float) -> tuple[int, int]:
 
@@ -128,14 +111,20 @@ class App:
             # empurra horizontalmente o mapa de hubs
             sx = (rot_x - start_x) * scale + game_w * 0.20
 
-            sy = center_y - (rot_y - start_y) * scale
+            sy = center_y - (rot_y - start_y) * scale * vertical_factor
+            # sy = center_y - (rot_y - start_y) * scale
 
             return int(sx), int(sy)
 
+        positions = {}
+
+        for name, (rot_x, rot_y) in rotated_coords.items():
+
+            positions[name] = to_screen(rot_x, rot_y)
         # calcula posicoes na tela a partir das coordenadas rotacionadas
-        positions = {
-            name: to_screen(*coord) for name, coord in rotated_coords.items()
-            }
+        # positions = {
+        #     name: to_screen(*coord) for name, coord in rotated_coords.items()
+        #     }
 
         return positions, scale
 
@@ -148,9 +137,9 @@ class App:
         for i, drone in enumerate(mapper.list_drone):
             pos = (drone.screen_x, drone.screen_y)
 
-            offset_x = i * 15
-            offset_y = i * 10
-            img = pygame.transform.scale(self.drone_img, (300, 300))
+            offset_x = i * 0
+            offset_y = -i * 15
+            img = pygame.transform.scale(self.drone_img, (100, 100))
 
             # self.game.blit(
             #     img,
@@ -190,8 +179,21 @@ class App:
                 drone.screen_x = target_x
                 drone.screen_y = target_y
 
+                for conn in mapper.list_conex:
+                    if drone.name in conn.drones_on_link:
+                        conn.drones_on_link.remove(drone.name)
+                        break
+
                 drone.current_hub = drone.target_hub
+
+                if drone.current_hub.zone in ("normal", "priority"):
+                    drone.waiting_turns = 1
+                elif drone.current_hub.zone == "restricted":
+                    drone.waiting_turns = 2
+
                 drone.target_hub = None
+                drone.path_index += 1
+                drone.moving = False
             else:
                 distance = (dx * dx + dy * dy) ** 0.5
                 dir_x = dx / distance
@@ -220,6 +222,7 @@ class App:
 
         # desenhar conexoes
         for conn in mapper.list_conex:
+
             start_p = positions.get(conn.start_point)
             end_p = positions.get(conn.end_point)
             if start_p and end_p:
@@ -308,8 +311,8 @@ def main() -> None:
     # try:
         tela = App()
         tela.run()
-    # except Exception:
-        # print("Image file not found!")
+    # except Exception as e:
+        # print(e)
 
 
 if __name__ == "__main__":

@@ -171,6 +171,14 @@ class ValidateDatas:
             for mkey in meta.keys():
                 if mkey not in key_names:
                     raise ParserError(f"'{mkey}' is not valid keys name")
+            for key, value in meta.items():
+                try:
+                    meta[key] = int(value)
+                except ValueError:
+                    raise ParserError(
+                        f"'{value}' in '{key}' of the connection '{endpoints}'"
+                        ", is not a int"
+                    )
 
         return (endpoints, meta)
 
@@ -200,7 +208,7 @@ class Creator:
     @staticmethod
     def create_connections(
                            endpoints: list[str],
-                           meta_data: dict[str, str],
+                           meta_data: dict[str, int],
                            possible_hubs_name: list[str]
                            ) -> Connection:
         '''
