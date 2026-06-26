@@ -1,5 +1,5 @@
 from validate import Parser
-from map import Map
+from map import Map, Hub
 from sys import argv
 import pygame
 
@@ -187,10 +187,12 @@ class App:
                 drone.current_hub = drone.target_hub
 
                 if drone.current_hub.zone in ("normal", "priority"):
-                    drone.waiting_turns = 1
+                    drone.waiting_turns = 0
                 elif drone.current_hub.zone == "restricted":
-                    drone.waiting_turns = 2
+                    drone.waiting_turns = 1
 
+                drone.current_hub = drone.target_hub
+                drone.current_hub.drones_in_hub += 1
                 drone.target_hub = None
                 drone.path_index += 1
                 drone.moving = False
@@ -215,10 +217,6 @@ class App:
         # tamanho dos predios, calc o tamanho e depois limita no maximo
         icon_size = int(1200 / (num_hubs ** 0.5))
         icon_size = max(100, min(icon_size, 220))
-        # icon_size = max(80, min(180, int(scale * 0.8)))
-        # icon_size = baseline  # max(16, int(64 * (scale / baseline)))
-        # largura da linha
-        # line_w = max(1, int(4 * (scale / baseline)))
 
         # desenhar conexoes
         for conn in mapper.list_conex:
@@ -261,6 +259,33 @@ class App:
                     (0, 120, 250),
                     pos, icon_size // 2)
 
+    def draw_menu(self, mapper: Map, turn: int) -> None:
+        '''
+            Desenha o menu lateral
+        '''
+        # Desenha as informaçoes
+        self.menu.fill(128, 128, 128)
+        font = pygame.font.SysFont(None, 32)
+        end_hub = None
+        for hub in mapper.list_hub:
+            if hub.end_hub:
+                end_hub = hub
+                break
+
+        infos = [
+            f"Turns: {turn}"
+            f"Drone: {mapper.nb_drone}",
+            f"Goal: {mapper.drones_in_hub(end_hub.name)}"
+            f" / {mapper.nb_drone}"]
+
+        y = 20
+        for info in infos:
+            text = font.render(info, True, (0, 255, 255))
+            self.menu.blit(text, (20, y))
+            y += 40
+        
+        # Desenha os botoes
+
     def run(self) -> None:
         '''
             Roda o programa
@@ -269,6 +294,13 @@ class App:
         mapper = self.parse_file()
         # print(mapper.find_path()) p ver se o caminho ta certo.
         frame_count = 0
+        font = pygame.font.SysFont("DejaVu Sans Bold", 30)
+        turn = 0
+        end_hub: Hub = None
+        for hub in mapper.list_hub:
+            if hub.end_hub:
+                end_hub = hub
+                break
 
         # Fazer drone se mover animado
         positions, _ = self.calc_screen_positions(mapper)
@@ -280,11 +312,19 @@ class App:
         while running:
 
             frame_count += 1
+            turn_text = font.render(
+                f"TURNS: {turn}",
+                True,
+                (0, 255, 255)
+                )
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
 
             if frame_count % 60 == 0:
+
+                if mapper.drones_in_hub(end_hub.name) < mapper.nb_drone:
+                    turn += 1
                 mapper.move_drone()
 
             self.animate_drones(mapper)
@@ -292,6 +332,7 @@ class App:
             self.game.blit(self.bg,  (0, 0))
             self.draw_map(mapper)
             self.draw_drone(mapper)
+            self.draw_menu(mapper, turn)
 
             self.virtual_window.blit(self.game, (0, 0))
             self.virtual_window.blit(self.menu, (self.game.get_width(), 0))
@@ -301,6 +342,7 @@ class App:
             change_size = pygame.transform.scale(self.virtual_window,
                                                  (width, height))
             self.window.blit(change_size, (0, 0))
+            self.window.blit(turn_text, (30, 20))
             # desenha bg, conexões e hubs em self.game
 
             pygame.display.flip()

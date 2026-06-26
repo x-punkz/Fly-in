@@ -9,6 +9,7 @@ class Hub(BaseModel):
     y: int = Field(...)
     color: str = Field(default="blue")
     model: str = Field(default="images/hubs/normal")
+    drones_in_hub: int = Field(default=0, ge=0)
     max_drones: int = Field(default=1, ge=1)
     zone: str = Field(default="normal")
     start_hub: bool = Field(default=False)
@@ -115,7 +116,7 @@ class Hub(BaseModel):
 
         if self.name == "start":
             self.start_hub = True
-        elif self.name == "goal":
+        elif "goal" in self.name:
             self.end_hub = True
 
 
@@ -133,7 +134,6 @@ class Connection(BaseModel):
 class Drone(BaseModel):
     name: str = Field(...)
     current_hub: Hub = Field(...)
-    image: str = "images/drone/drone.png"
     screen_x: float = 0
     screen_y: float = 0
     target_hub: Hub | None = None
@@ -141,7 +141,6 @@ class Drone(BaseModel):
     path_index: int = 0
     active: bool = False
     current_connection: str | None = None
-    queue_position: int = 0
     waiting_turns: int = 0
     moving: bool = False
 
@@ -188,7 +187,7 @@ class Map():
         count = 0
 
         for drone in self.list_drone:
-            if drone.current_hub.name == hub_name:
+            if drone.current_hub and drone.current_hub.name == hub_name:
                 count += 1
 
         return count
@@ -218,6 +217,7 @@ class Map():
     def create_drone(self) -> list[Drone]:
         drone_list: list[Drone] = []
         start_hub = self.get_hub_by_name("start")
+        start_hub.drones_in_hub = self.nb_drone
         route = self.find_path()
 
         for i in range(self.nb_drone):
@@ -243,11 +243,8 @@ class Map():
         return None
 
     def release_start_drones(self) -> None:
-        if len(self.list_drone) == 0:
-            return
-
         if (
-            len(self.list_drone) == 0
+            not self.list_drone
             or len(self.list_drone[0].path) < 2
         ):
             return
@@ -257,10 +254,21 @@ class Map():
             self.list_drone[0].path[1]
         )
 
-        free_slots = (
+        next_hub = self.get_hub_by_name(
+            self.list_drone[0].path[1]
+        )
+
+        free_link = (
             first_conn.max_link_capacity
             - len(first_conn.drones_on_link)
         )
+
+        free_hub = (
+            next_hub.max_drones
+            - next_hub.drones_in_hub
+        )
+
+        free_slots = max(0, min(free_link, free_hub))
 
         waiting = [
             drone for drone in self.list_drone
@@ -270,9 +278,6 @@ class Map():
         for drone in waiting[:free_slots]:
             drone.active = True
             first_conn.drones_on_link.append(drone.name)
-            drone.current_connection = (
-                f"{first_conn.start_point}-{first_conn.end_point}"
-            )
 
     def move_drone(self) -> None:
         self.release_start_drones()
@@ -304,7 +309,7 @@ class Map():
             if next_hub.zone == "blocked":
                 continue
 
-            if self.drones_in_hub(next_hub.name) >= next_hub.max_drones:
+            if next_hub.drones_in_hub >= next_hub.max_drones:
                 continue
 
             if drone.name not in next_connection.drones_on_link:
@@ -327,6 +332,8 @@ class Map():
                     f"-{next_connection.end_point}"
                 )
 
+            drone.current_hub.drones_in_hub -= 1
+            drone.current_hub = None
             drone.target_hub = next_hub
             drone.moving = True
 
