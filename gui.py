@@ -29,6 +29,10 @@ class App:
         menu_color = (128, 128, 128)
         self.menu.fill(menu_color)
 
+        self.start_button = pygame.Rect(40, 180, 180, 50)
+        self.reverse_button = pygame.Rect(40, 250, 180, 50)
+        self.reset_button = pygame.Rect(40, 320, 180, 50)
+
     @staticmethod
     def coordenadas_giradas(x: float,
                             y: float,
@@ -264,7 +268,7 @@ class App:
             Desenha o menu lateral
         '''
         # Desenha as informaçoes
-        self.menu.fill(128, 128, 128)
+        self.menu.fill((128, 128, 128))
         font = pygame.font.SysFont(None, 32)
         end_hub = None
         for hub in mapper.list_hub:
@@ -283,8 +287,47 @@ class App:
             text = font.render(info, True, (0, 255, 255))
             self.menu.blit(text, (20, y))
             y += 40
-        
+
         # Desenha os botoes
+        font = pygame.font.SysFont(None, 32)
+        # START
+        pygame.draw.rect(
+            self.menu,
+            (50, 180, 50),
+            self.start_button,
+            border_radius=8
+        )
+        text = font.render("START", True, (255, 255, 255))
+        self.menu.blit(
+            text,
+            text.get_rect(center=self.start_button.center)
+        )
+
+        # REVERSE
+        pygame.draw.rect(
+            self.menu,
+            (50, 120, 220),
+            self.reverse_button,
+            border_radius=8
+        )
+        text = font.render("REVERSE", True, (255, 255, 255))
+        self.menu.blit(
+            text,
+            text.get_rect(center=self.reverse_button.center)
+        )
+
+        # RESET
+        pygame.draw.rect(
+            self.menu,
+            (200, 50, 50),
+            self.reset_button,
+            border_radius=8
+        )
+        text = font.render("RESET", True, (255, 255, 255))
+        self.menu.blit(
+            text,
+            text.get_rect(center=self.reset_button.center)
+        )
 
     def run(self) -> None:
         '''
@@ -296,6 +339,9 @@ class App:
         frame_count = 0
         font = pygame.font.SysFont("DejaVu Sans Bold", 30)
         turn = 0
+        simulation_running = False
+        reverse = False
+
         end_hub: Hub = None
         for hub in mapper.list_hub:
             if hub.end_hub:
@@ -320,12 +366,37 @@ class App:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                if event.type == pygame.MOUSEBUTTONDOWN:
+
+                    mouse = (
+                        event.pos[0] - self.game.get_width(),
+                        event.pos[1]
+                    )
+
+                    if self.start_button.collidepoint(mouse):
+                        simulation_running = True
+
+                    elif self.reverse_button.collidepoint(mouse):
+                        reverse = not reverse
+
+                    elif self.reset_button.collidepoint(mouse):
+                        simulation_running = False
+                        print("Reset")
 
             if frame_count % 60 == 0:
+                if simulation_running and frame_count % 60 == 0:
 
-                if mapper.drones_in_hub(end_hub.name) < mapper.nb_drone:
-                    turn += 1
-                mapper.move_drone()
+                    if mapper.drones_in_hub(end_hub.name) < mapper.nb_drone:
+                        turn += 1
+
+                        if reverse:
+                            # depois você implementa
+                            pass
+                        else:
+                            mapper.move_drone()
+                # if mapper.drones_in_hub(end_hub.name) < mapper.nb_drone:
+                #     turn += 1
+                # mapper.move_drone()
 
             self.animate_drones(mapper)
 
