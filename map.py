@@ -113,7 +113,6 @@ class Hub(BaseModel):
         '''
             Seta o hub como 'start' ou como 'end' se o 'name'
         '''
-
         if self.name == "start":
             self.start_hub = True
         elif "goal" in self.name:
@@ -154,8 +153,12 @@ class Map():
         self.list_hub = list_hub
         self.list_conex = list_conex
         self.nb_drone = nb_drone
+        self.reverse = False
+        for hub in list_hub:
+            if hub.end_hub:
+                hub.max_drones = nb_drone
         self.list_drone = self.create_drone()
-        # print("Rota encontrada:", self.find_path())
+        # print("Rota encontrada:", self.find_path_w_bfs())
 
         for hub in self.list_hub:
             hub.mount_image_hub()
@@ -192,7 +195,10 @@ class Map():
 
         return count
 
-    def find_path(self) -> list[str]:
+    def find_path_w_dijkstra(self) -> list[str]:
+        pass
+
+    def find_path_w_bfs(self) -> list[str]:
         graph = self.create_graph()
 
         queue = deque()
@@ -218,7 +224,7 @@ class Map():
         drone_list: list[Drone] = []
         start_hub = self.get_hub_by_name("start")
         start_hub.drones_in_hub = self.nb_drone
-        route = self.find_path()
+        route = self.find_path_w_bfs()
 
         for i in range(self.nb_drone):
             drone = Drone(
@@ -272,7 +278,10 @@ class Map():
 
         waiting = [
             drone for drone in self.list_drone
-            if not drone.active
+            if (
+                not drone.active
+                and drone.current_hub.name == drone.path[0]
+            )
         ]
 
         for drone in waiting[:free_slots]:

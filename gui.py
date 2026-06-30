@@ -1,6 +1,7 @@
+
 from validate import Parser
 from map import Map, Hub
-from sys import argv
+from sys import argv, exc_info
 import pygame
 
 
@@ -13,7 +14,7 @@ class App:
         # escolher a imagem e por o caminho aqui
         self.bg = pygame.image.load("images/map/iso.png")
         # pygame.mixer.music.load() #  da p por musica
-        self.drone_img = pygame.image.load("images/drone/drone.png")  # .convert_alpha()
+        self.drone_img = pygame.image.load("images/drone/drone.png")
         screen_info: pygame.display._VidInfo = pygame.display.Info()
         self.width: int = int(screen_info.current_w)
         self.height: int = int(1016)
@@ -26,12 +27,11 @@ class App:
         self.menu = pygame.Surface((self.width * 1/4, self.height))
         game_color = (255, 255, 255)
         self.menu.fill(game_color)
-        menu_color = (128, 128, 128)
-        self.menu.fill(menu_color)
 
         self.start_button = pygame.Rect(40, 180, 180, 50)
+        self.stop_button = pygame.Rect(250, 180, 180, 50)
         self.reverse_button = pygame.Rect(40, 250, 180, 50)
-        self.reset_button = pygame.Rect(40, 320, 180, 50)
+        self.reset_button = pygame.Rect(250, 250, 180, 50)
 
     @staticmethod
     def coordenadas_giradas(x: float,
@@ -263,13 +263,75 @@ class App:
                     (0, 120, 250),
                     pos, icon_size // 2)
 
+    def draw_menu_border(self) -> None:
+
+        pygame.draw.rect(
+            self.menu,
+            (255, 20, 147),      # cor da borda
+            (10, 10,
+                self.menu.get_width() - 20,
+                self.menu.get_height() - 20),
+            width=3,              # espessura da linha
+            border_radius=12      # cantos arredondados
+        )
+
+        pygame.draw.rect(
+            self.menu,
+            (238, 130, 238),      # cor da borda
+            (10, 10,
+                self.menu.get_width() - 20,
+                self.menu.get_height() - 20),
+            width=2,              # espessura da linha
+            border_radius=12      # cantos arredondados
+        )
+
+        pygame.draw.rect(
+            self.menu,
+            (0, 255, 255),      # cor da borda
+            (20, 20,
+                self.menu.get_width() - 40,
+                self.menu.get_height() - 40),
+            width=2,              # espessura da linha
+            border_radius=12      # cantos arredondados
+        )
+
+    def draw_button_border(self, color: str, rect: pygame.rect) -> None:
+        if color == "green":
+            color = (0, 255, 0)
+        elif color == "red":
+            color = (255, 0, 0)
+        elif color == "orange":
+            color = (255, 140, 0)
+        elif color == "blue":
+            color = (123, 104, 238)
+
+        pygame.draw.rect(
+            self.menu,
+            color,
+            rect,
+            width=4,
+            border_radius=12
+        )
+
+        pygame.draw.rect(
+            self.menu,
+            (216, 191, 216),
+            rect,
+            width=2,
+            border_radius=12
+        )
+
     def draw_menu(self, mapper: Map, turn: int) -> None:
         '''
             Desenha o menu lateral
         '''
         # Desenha as informaçoes
-        self.menu.fill((128, 128, 128))
-        font = pygame.font.SysFont(None, 32)
+        self.menu.fill((2, 2, 2))
+
+        # Desenha a borda do menu
+        self.draw_menu_border()
+
+        font = pygame.font.SysFont("DejaVu Sans Bold", 32)
         end_hub = None
         for hub in mapper.list_hub:
             if hub.end_hub:
@@ -277,40 +339,55 @@ class App:
                 break
 
         infos = [
-            f"Turns: {turn}"
+            f"Turns: {turn}",
             f"Drone: {mapper.nb_drone}",
             f"Goal: {mapper.drones_in_hub(end_hub.name)}"
             f" / {mapper.nb_drone}"]
 
-        y = 20
+        y = 40
         for info in infos:
             text = font.render(info, True, (0, 255, 255))
-            self.menu.blit(text, (20, y))
+            self.menu.blit(text, (40, y))
             y += 40
 
         # Desenha os botoes
-        font = pygame.font.SysFont(None, 32)
+        font = pygame.font.SysFont("DejaVu Sans Bold", 32)
         # START
         pygame.draw.rect(
             self.menu,
-            (50, 180, 50),
+            (0, 0, 0),
             self.start_button,
             border_radius=8
         )
-        text = font.render("START", True, (255, 255, 255))
+        self.draw_button_border("green", self.start_button)
+        text = font.render("START", True, (50, 205, 50))
         self.menu.blit(
             text,
             text.get_rect(center=self.start_button.center)
         )
 
+        # STOP
+        pygame.draw.rect(
+            self.menu,
+            (2, 2, 2),
+            self.stop_button,
+            border_radius=8
+        )
+        self.draw_button_border("red", self.stop_button)
+        text = font.render("STOP", True, (220, 20, 60))
+        self.menu.blit(
+            text,
+            text.get_rect(center=self.stop_button.center)
+        )
         # REVERSE
         pygame.draw.rect(
             self.menu,
-            (50, 120, 220),
+            (2, 2, 2),
             self.reverse_button,
             border_radius=8
         )
-        text = font.render("REVERSE", True, (255, 255, 255))
+        self.draw_button_border("blue", self.reverse_button)
+        text = font.render("REVERSE", True, (123, 104, 238))
         self.menu.blit(
             text,
             text.get_rect(center=self.reverse_button.center)
@@ -319,11 +396,12 @@ class App:
         # RESET
         pygame.draw.rect(
             self.menu,
-            (200, 50, 50),
+            (2, 2, 2),
             self.reset_button,
             border_radius=8
         )
-        text = font.render("RESET", True, (255, 255, 255))
+        self.draw_button_border("orange", self.reset_button)
+        text = font.render("RESET", True, (210, 105, 30))
         self.menu.blit(
             text,
             text.get_rect(center=self.reset_button.center)
@@ -335,12 +413,11 @@ class App:
         '''
         running: bool = True
         mapper = self.parse_file()
-        # print(mapper.find_path()) p ver se o caminho ta certo.
+        # print(mapper._w_bfs()) p ver se o caminho ta certo.
         frame_count = 0
         font = pygame.font.SysFont("DejaVu Sans Bold", 30)
         turn = 0
         simulation_running = False
-        reverse = False
 
         end_hub: Hub = None
         for hub in mapper.list_hub:
@@ -376,8 +453,31 @@ class App:
                     if self.start_button.collidepoint(mouse):
                         simulation_running = True
 
+                    elif self.stop_button.collidepoint(mouse):
+                        simulation_running = False
+                        print("Stop")
+
                     elif self.reverse_button.collidepoint(mouse):
-                        reverse = not reverse
+                        if (
+                            mapper.drones_in_hub(end_hub.name)
+                            != mapper.nb_drone
+                        ):
+                            # colocar p printar no menu
+                            print("Aguarde todos os drones chegarem.")
+
+                        elif not mapper.reverse:
+                            mapper.reverse = True
+                            simulation_running = True
+
+                            for drone in mapper.list_drone:
+                                drone.path.reverse()
+                                drone.path_index = 0
+                                drone.current_connection = None
+                                drone.target_hub = None
+                                drone.active = False
+                                drone.moving = False
+
+                            print("reverse")
 
                     elif self.reset_button.collidepoint(mouse):
                         simulation_running = False
@@ -388,15 +488,7 @@ class App:
 
                     if mapper.drones_in_hub(end_hub.name) < mapper.nb_drone:
                         turn += 1
-
-                        if reverse:
-                            # depois você implementa
-                            pass
-                        else:
-                            mapper.move_drone()
-                # if mapper.drones_in_hub(end_hub.name) < mapper.nb_drone:
-                #     turn += 1
-                # mapper.move_drone()
+                        mapper.move_drone()
 
             self.animate_drones(mapper)
 
@@ -421,11 +513,13 @@ class App:
 
 
 def main() -> None:
-    # try:
+    try:
         tela = App()
         tela.run()
-    # except Exception as e:
-        # print(e)
+    except Exception as e:
+        exc_type, exc_obj, exc_tb = exc_info()
+        error_line = exc_tb.tb_lineno
+        print(f"Erro in line {error_line}: {e}")
 
 
 if __name__ == "__main__":
