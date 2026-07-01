@@ -303,6 +303,7 @@ class Map():
 
             if drone.path_index >= len(drone.path) - 1:
                 continue
+
             current_name = drone.path[drone.path_index]
             next_name = drone.path[drone.path_index + 1]
 

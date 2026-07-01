@@ -463,14 +463,20 @@ class App:
                             != mapper.nb_drone
                         ):
                             # colocar p printar no menu
-                            print("Aguarde todos os drones chegarem.")
+                            # error_msg = font.render(
+                            #         "Aguarde os drones chegarem ao goal",
+                            #         True,
+                            #         (0, 255, 255)
+                            #     )
+                            # self.menu.blit(error_msg, (250, 190))
+                            print("espera porra")
 
                         elif not mapper.reverse:
                             mapper.reverse = True
                             simulation_running = True
 
                             for drone in mapper.list_drone:
-                                drone.path.reverse()
+                                drone.path = drone.path[::-1]
                                 drone.path_index = 0
                                 drone.current_connection = None
                                 drone.target_hub = None
@@ -481,12 +487,24 @@ class App:
 
                     elif self.reset_button.collidepoint(mouse):
                         simulation_running = False
+                        turn = 0
+                        frame_count = 0
+                        mapper = self.parse_file()
+                        positions, _ = self.calc_screen_positions(mapper)
+
+                        for drone in mapper. list_drone:
+                            start_pos = positions["start"]
+                            drone.screen_x = start_pos[0]
+                            drone.screen_y = start_pos[1]
+
                         print("Reset")
 
             if frame_count % 60 == 0:
                 if simulation_running and frame_count % 60 == 0:
 
-                    if mapper.drones_in_hub(end_hub.name) < mapper.nb_drone:
+                    target = "start" if mapper.reverse else end_hub.name
+
+                    if mapper.drones_in_hub(target) < mapper.nb_drone:
                         turn += 1
                         mapper.move_drone()
 
