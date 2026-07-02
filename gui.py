@@ -11,15 +11,23 @@ class App:
         pygame.display.set_caption("Fly_in")
         icon = pygame.image.load("images/icon.png")
         pygame.display.set_icon(icon)
-        # escolher a imagem e por o caminho aqui
+        # escolher a imagem do bg e por o caminho aqui
         self.bg = pygame.image.load("images/map/iso.png")
         # pygame.mixer.music.load() #  da p por musica
         self.drone_img = pygame.image.load("images/drone/drone.png")
+        # botoes
+        self.start_img = pygame.image.load("images/buttons/start.png")
+        self.stop_img = pygame.image.load("images/buttons/stop.png")
+        self.reverse_img = pygame.image.load("images/buttons/reverse.png")
+        self.reset_img = pygame.image.load("images/buttons/reset.png")
+        self.turn_button = pygame.image.load("images/buttons/turns.png")
+        self.drone_button = pygame.image.load("images/buttons/drone.png")
+        self.goal_button = pygame.image.load("images/buttons/goal.png")
+
         screen_info: pygame.display._VidInfo = pygame.display.Info()
         self.width: int = int(screen_info.current_w)
         self.height: int = int(1016)
 
-        # self.width, self.height = 1744, 768
         self.window = pygame.display.set_mode((self.width, self.height),
                                               pygame.RESIZABLE)
         self.virtual_window = pygame.Surface((self.width, self.height))
@@ -452,6 +460,7 @@ class App:
 
         # Desenha os botoes
         font = pygame.font.Font(self.font_name, 32)
+        padding = 18
         # START
         pygame.draw.rect(
             self.menu,
@@ -460,11 +469,9 @@ class App:
             border_radius=8
         )
         self.draw_button_border("start", self.start_button)
-        text = font.render("START", True, (0, 255, 255))
-        self.menu.blit(
-            text,
-            text.get_rect(center=self.start_button.center)
-        )
+        img_rect1 = self.start_img.get_rect(left=self.start_button.left + padding)
+        img_rect1.centery = self.start_button.centery
+        self.menu.blit(self.start_img, img_rect1)
 
         # STOP
         pygame.draw.rect(
@@ -474,11 +481,10 @@ class App:
             border_radius=8
         )
         self.draw_button_border("stop", self.stop_button)
-        text = font.render("STOP", True, (0, 255, 255))
-        self.menu.blit(
-            text,
-            text.get_rect(center=self.stop_button.center)
-        )
+        img_rect2 = self.stop_img.get_rect(left=self.stop_button.left + padding)
+        img_rect2.centery = self.stop_button.centery
+        self.menu.blit(self.stop_img, img_rect2)
+
         # REVERSE
         pygame.draw.rect(
             self.menu,
@@ -487,11 +493,9 @@ class App:
             border_radius=8
         )
         self.draw_button_border("reverse", self.reverse_button)
-        text = font.render("REVERSE", True, (0, 255, 255))
-        self.menu.blit(
-            text,
-            text.get_rect(center=self.reverse_button.center)
-        )
+        img_rect3 = self.reverse_img.get_rect(left=self.reverse_button.left + padding)
+        img_rect3.centery = self.reverse_button.centery
+        self.menu.blit(self.reverse_img, img_rect3)
 
         # RESET
         pygame.draw.rect(
@@ -501,11 +505,9 @@ class App:
             border_radius=8
         )
         self.draw_button_border("reset", self.reset_button)
-        text = font.render("RESET", True, (0, 255, 255))
-        self.menu.blit(
-            text,
-            text.get_rect(center=self.reset_button.center)
-        )
+        img_rect4 = self.reset_img.get_rect(left=self.reset_button.left + padding)
+        img_rect4.centery = self.reset_button.centery
+        self.menu.blit(self.reset_img, img_rect4)
 
     def run(self) -> None:
         '''
