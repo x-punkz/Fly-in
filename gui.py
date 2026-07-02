@@ -27,11 +27,12 @@ class App:
         self.menu = pygame.Surface((self.width * 1/4, self.height))
         game_color = (255, 255, 255)
         self.menu.fill(game_color)
+        self.font_name = "images/font/Michroma-Regular.ttf"
 
-        self.start_button = pygame.Rect(40, 180, 400, 70)
-        self.stop_button = pygame.Rect(40, 270, 400, 70)
-        self.reverse_button = pygame.Rect(40, 360, 400, 70)
-        self.reset_button = pygame.Rect(40, 450, 400, 70)
+        self.start_button = pygame.Rect(60, 390, 350, 60)
+        self.stop_button = pygame.Rect(60, 460, 350, 60)
+        self.reverse_button = pygame.Rect(60, 530, 350, 60)
+        self.reset_button = pygame.Rect(60, 600, 350, 60)
 
     @staticmethod
     def coordenadas_giradas(x: float,
@@ -265,34 +266,39 @@ class App:
 
     def draw_menu_border(self) -> None:
 
-        pygame.draw.rect(
+        points = [
+            (20, 20),
+            (250, 20),
+            (300, 70),
+            (390, 70),
+            (440, 20),
+            (self.menu.get_width() - 20, 20),
+            (self.menu.get_width() - 20, self.menu.get_height() - 20),
+            (20, self.menu.get_height() - 20)
+        ]
+
+        points2 = [
+            (35, 140),
+            (35, 980),
+            (445, 980),
+            (445, 40),
+
+        ]
+
+        pygame.draw.lines(
             self.menu,
-            (255, 20, 147),      # cor da borda
-            (10, 10,
-                self.menu.get_width() - 20,
-                self.menu.get_height() - 20),
-            width=3,              # espessura da linha
-            border_radius=12      # cantos arredondados
+            (0, 255, 255),
+            True,
+            points,
+            3
         )
 
-        pygame.draw.rect(
+        pygame.draw.lines(
             self.menu,
-            (238, 130, 238),      # cor da borda
-            (10, 10,
-                self.menu.get_width() - 20,
-                self.menu.get_height() - 20),
-            width=2,              # espessura da linha
-            border_radius=12      # cantos arredondados
-        )
-
-        pygame.draw.rect(
-            self.menu,
-            (0, 255, 255),      # cor da borda
-            (20, 20,
-                self.menu.get_width() - 40,
-                self.menu.get_height() - 40),
-            width=2,              # espessura da linha
-            border_radius=12      # cantos arredondados
+            (0, 255, 255),
+            False,
+            points2,
+            2,
         )
 
     def draw_button_border(self, name: str, rect: pygame.rect) -> None:
@@ -307,15 +313,7 @@ class App:
 
         pygame.draw.rect(
             self.menu,
-            (238, 130, 238),
-            rect,
-            width=4,
-            border_radius=12
-        )
-
-        pygame.draw.rect(
-            self.menu,
-            (255, 20, 147),
+            (255, 0, 255),
             rect,
             width=2,
             border_radius=12
@@ -325,33 +323,135 @@ class App:
         '''
             Desenha o menu lateral
         '''
+
         # Desenha as informaçoes
         self.menu.fill((2, 2, 2))
 
-        # Desenha a borda do menu
-        self.draw_menu_border()
-
-        font = pygame.font.SysFont("DejaVu Sans Bold", 32)
         end_hub = None
         for hub in mapper.list_hub:
             if hub.end_hub:
                 end_hub = hub
                 break
 
-        infos = [
-            f"Turns: {turn}",
-            f"Drone: {mapper.nb_drone}",
-            f"Goal: {mapper.drones_in_hub(end_hub.name)}"
-            f" / {mapper.nb_drone}"]
+        # Desenha a borda do menu
+        self.draw_menu_border()
 
-        y = 40
-        for info in infos:
-            text = font.render(info, True, (0, 255, 255))
-            self.menu.blit(text, (40, y))
-            y += 40
+        title_font = pygame.font.Font(self.font_name, 32)
+
+        # title
+        pygame.draw.rect(
+            self.menu,
+            (255, 0, 255),
+            (40, 40, 205, 60),
+            width=3,
+            border_top_left_radius=0,
+            border_top_right_radius=0,
+            border_bottom_left_radius=0,
+            border_bottom_right_radius=20,
+        )
+
+        text1 = title_font.render("FLY_IN", False, (0, 255, 255))
+        self.menu.blit(text1, (70, 45))
+        self.menu.blit(text1, (69, 44))
+
+        # STATUS
+        font_title = pygame.font.Font(self.font_name, 20)
+        font = pygame.font.Font(self.font_name, 18)
+
+        text2 = font_title.render("STATUS", False, (0, 255, 255))
+        self.menu.blit(text2, (60, 125))
+
+        # Horizontal line
+        pygame.draw.line(
+            self.menu,
+            (255, 0, 255),
+            (60, 160),
+            (400, 160),
+            3
+        )
+        # Vertical line
+        pygame.draw.line(
+            self.menu,
+            (255, 0, 255),
+            (400, 145),
+            (400, 160),
+            3
+        )
+
+        self.menu.blit(font.render(
+            f"TURNS                         {turn}",
+            True,
+            (0, 255, 255)),
+            (60, 175))
+
+        self.menu.blit(
+            font.render(f"DRONES                     {mapper.nb_drone}",
+                        True,
+                        (0, 255, 255)), (60, 225)
+        )
+        self.menu.blit(
+            font.render(
+                "GOAL                        "
+                f"{mapper.drones_in_hub(end_hub.name)}/{mapper.nb_drone}",
+                True, (0, 255, 255)), (60, 280)
+            )
+
+        # CONTROLS
+        text3 = font_title.render("CONTROLS", False, (0, 255, 255))
+        self.menu.blit(text3, (60, 330))
+
+        # Horizontal line
+        pygame.draw.line(
+            self.menu,
+            (255, 0, 255),
+            (60, 370),
+            (400, 370),
+            3
+        )
+        # Vertical line
+        pygame.draw.line(
+            self.menu,
+            (255, 0, 255),
+            (400, 355),
+            (400, 370),
+            3
+        )
+
+        # MESSAGE
+        text4 = font_title.render("MESSAGES", False, (0, 255, 255))
+        self.menu.blit(text4, (60, 690))
+
+        # Horizontal line
+        pygame.draw.line(
+            self.menu,
+            (255, 0, 255),
+            (60, 725),
+            (400, 725),
+            3
+        )
+
+        # Vertical line
+        pygame.draw.line(
+            self.menu,
+            (255, 0, 255),
+            (400, 710),
+            (400, 725),
+            3
+        )
+
+        pygame.draw.rect(
+            self.menu,
+            (255, 0, 255),
+            (65, 740, 335, 120),
+            width=2,
+            border_top_left_radius=15,
+            border_top_right_radius=0,
+            border_bottom_left_radius=0,
+            border_bottom_right_radius=15,
+        )
 
         # Desenha os botoes
-        font = pygame.font.SysFont("DejaVu Sans Bold", 32)
+        font = pygame.font.Font(self.font_name, 32)
         # START
         pygame.draw.rect(
             self.menu,
@@ -413,7 +513,6 @@ class App:
         '''
         running: bool = True
         mapper = self.parse_file()
-        font = pygame.font.SysFont("DejaVu Sans Bold", 30)
         frame_count = 0
         turn = 0
         simulation_running = False
@@ -436,11 +535,6 @@ class App:
         while running:
 
             frame_count += 1
-            turn_text = font.render(
-                f"TURNS: {turn}",
-                True,
-                (0, 255, 255)
-                )
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -515,16 +609,16 @@ class App:
 
             # printar mensagem de erro
             if pygame.time.get_ticks() < error_until:
-                error_font = pygame.font.SysFont("DejaVu Sans Bold", 23)
-                y = 80
+                error_font = pygame.font.SysFont(self.font_name, 23)
+                y = 780
 
                 for line in error_message:
                     text = error_font.render(
                         line,
                         True,
-                        (0, 255, 255)
+                        (220, 20, 60)
                     )
-                    self.menu.blit(text, (200, y))
+                    self.menu.blit(text, (150, y))
                     y += 28
 
             self.virtual_window.blit(self.game, (0, 0))
@@ -535,7 +629,6 @@ class App:
             change_size = pygame.transform.scale(self.virtual_window,
                                                  (width, height))
             self.window.blit(change_size, (0, 0))
-            self.window.blit(turn_text, (30, 20))
             # desenha bg, conexões e hubs em self.game
 
             pygame.display.flip()
