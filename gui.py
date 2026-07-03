@@ -174,7 +174,7 @@ class App:
             Anima os drones fazendo eles andarem alguns pixels por frame
         '''
         positions, _ = self.calc_screen_positions(mapper)
-        speed = 5
+        speed = 6
 
         for drone in mapper.list_drone:
             if drone.target_hub is None:
@@ -198,14 +198,13 @@ class App:
                         break
 
                 drone.current_hub = drone.target_hub
+                drone.current_hub.drones_in_hub += 1
 
                 if drone.current_hub.zone in ("normal", "priority"):
                     drone.waiting_turns = 0
                 elif drone.current_hub.zone == "restricted":
                     drone.waiting_turns = 1
 
-                drone.current_hub = drone.target_hub
-                drone.current_hub.drones_in_hub += 1
                 drone.target_hub = None
                 drone.path_index += 1
                 drone.moving = False
@@ -385,23 +384,29 @@ class App:
             (400, 160),
             3
         )
+        # logo
+        self.menu.blit(self.turn_button, (60, 175))
 
         self.menu.blit(font.render(
             f"TURNS                         {turn}",
             True,
             (0, 255, 255)),
-            (60, 175))
+            (105, 175))
 
+        # logo
+        self.menu.blit(self.drone_button, (60, 225))
         self.menu.blit(
             font.render(f"DRONES                     {mapper.nb_drone}",
                         True,
-                        (0, 255, 255)), (60, 225)
+                        (0, 255, 255)), (105, 225)
         )
+
+        self.menu.blit(self.goal_button, (60, 280))
         self.menu.blit(
             font.render(
                 "GOAL                        "
                 f"{mapper.drones_in_hub(end_hub.name)}/{mapper.nb_drone}",
-                True, (0, 255, 255)), (60, 280)
+                True, (0, 255, 255)), (105, 280)
             )
 
         # CONTROLS
@@ -469,7 +474,8 @@ class App:
             border_radius=8
         )
         self.draw_button_border("start", self.start_button)
-        img_rect1 = self.start_img.get_rect(left=self.start_button.left + padding)
+        img_rect1 = self.start_img.get_rect(left=self.start_button.left
+                                            + padding)
         img_rect1.centery = self.start_button.centery
         self.menu.blit(self.start_img, img_rect1)
 
@@ -481,7 +487,8 @@ class App:
             border_radius=8
         )
         self.draw_button_border("stop", self.stop_button)
-        img_rect2 = self.stop_img.get_rect(left=self.stop_button.left + padding)
+        img_rect2 = self.stop_img.get_rect(left=self.stop_button.left
+                                           + padding)
         img_rect2.centery = self.stop_button.centery
         self.menu.blit(self.stop_img, img_rect2)
 
@@ -493,7 +500,8 @@ class App:
             border_radius=8
         )
         self.draw_button_border("reverse", self.reverse_button)
-        img_rect3 = self.reverse_img.get_rect(left=self.reverse_button.left + padding)
+        img_rect3 = self.reverse_img.get_rect(left=self.reverse_button.left
+                                              + padding)
         img_rect3.centery = self.reverse_button.centery
         self.menu.blit(self.reverse_img, img_rect3)
 
@@ -505,7 +513,8 @@ class App:
             border_radius=8
         )
         self.draw_button_border("reset", self.reset_button)
-        img_rect4 = self.reset_img.get_rect(left=self.reset_button.left + padding)
+        img_rect4 = self.reset_img.get_rect(left=self.reset_button.left
+                                            + padding)
         img_rect4.centery = self.reset_button.centery
         self.menu.blit(self.reset_img, img_rect4)
 
@@ -596,11 +605,18 @@ class App:
             if frame_count % 60 == 0:
                 if simulation_running and frame_count % 60 == 0:
 
-                    target = "start" if mapper.reverse else end_hub.name
+                    moving = False
+                    for drone in mapper.list_drone:
+                        if drone.moving:
+                            moving = True
+                            break
 
-                    if mapper.drones_in_hub(target) < mapper.nb_drone:
-                        turn += 1
-                        mapper.move_drone()
+                    if not moving:
+                        target = "start" if mapper.reverse else end_hub.name
+
+                        if mapper.drones_in_hub(target) < mapper.nb_drone:
+                            turn += 1
+                            mapper.move_drone()
 
             self.animate_drones(mapper)
 

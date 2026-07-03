@@ -291,7 +291,7 @@ class Map():
     def move_drone(self) -> None:
         self.release_start_drones()
         for drone in self.list_drone:
-            if drone.moving:
+            if drone.moving or drone.target_hub is not None:
                 continue
 
             if drone.waiting_turns > 0:
@@ -343,8 +343,8 @@ class Map():
                 )
 
             drone.current_hub.drones_in_hub -= 1
-            drone.current_hub = None
             drone.target_hub = next_hub
+            # drone.current_hub = None
             drone.moving = True
 
         self.release_start_drones()
