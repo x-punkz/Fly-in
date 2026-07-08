@@ -199,11 +199,54 @@ class Map():
 
         return count
 
-    def find_path_w_bfs(self) -> list[str]:
-        node: float("inf")
+    def find_path_w_dijkstra(self) -> list[str]:
+        # codigo do gpt
         graph = self.create_graph()
-        
-        dist = {node for node in self.graph}
+
+        start = "start"
+        goal = "goal"
+
+        distances = {node: float("inf") for node in graph}
+        previous = {node: None for node in graph}
+
+        distances[start] = 0
+        unvisited = set(graph.keys())
+
+        while unvisited:
+            current = min(unvisited, key=lambda node: distances[node])
+            unvisited.remove(current)
+
+            if distances[current] == float("inf"):
+                break
+
+            if current == goal:
+                break
+
+            for neighbor in graph[current]:
+                hub = self.get_hub_by_name(neighbor)
+
+                if hub is None or hub.zone == "blocked":
+                    continue
+
+                new_distance = distances[current] + hub.cost
+
+                if new_distance < distances[neighbor]:
+                    distances[neighbor] = new_distance
+                    previous[neighbor] = current
+
+        if distances[goal] == float("inf"):
+            return []
+
+        path = []
+        current = goal
+
+        while current is not None:
+            path.append(current)
+            current = previous[current]
+
+        path.reverse()
+        return path
+
         # graph = self.create_graph()
         # start = "start"
         # goal = "goal"
@@ -271,7 +314,7 @@ class Map():
         drone_list: list[Drone] = []
         start_hub = self.get_hub_by_name("start")
         start_hub.drones_in_hub = self.nb_drone
-        route = self.find_path_w_bfs()
+        route = self.find_path_w_dijkstra()
 
         for i in range(self.nb_drone):
             drone = Drone(
