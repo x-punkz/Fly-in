@@ -530,7 +530,7 @@ class App:
         error_message = ""
         error_until = 0
 
-        end_hub: Hub = None
+        end_hub: Hub | None = None
         for hub in mapper.list_hub:
             if hub.end_hub:
                 end_hub = hub

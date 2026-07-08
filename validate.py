@@ -16,6 +16,8 @@ class Parser:
     def parse(self) -> tuple[list[Hub], list[Connection], int]:
         hub_list: list[Hub] = []
         connect_list: list[Connection] = []
+        connect_set: set[tuple[str, str]] = set()
+
         for line in self.config_file.splitlines():
             if line.strip() and not line.startswith("#"):
                 key, value = line.strip().split(":")
@@ -25,6 +27,8 @@ class Parser:
                     if value.strip().isdigit() is False:
                         raise ValueError("Drone number isn't an int.")
                     nb_drone = int(value.strip())
+                    if nb_drone <= 0:
+                        raise ValueError("Nb_drone cannot be negative")
 
                 # valida hubs
                 elif "hub" in key:
@@ -46,6 +50,8 @@ class Parser:
                     if len(datas) < 1:
                         raise TypeError(f"The '{key}' has no data.")
                     data, meta_data = datas
+                    if data[0] in hub_list:
+                        raise ParserError(f"'{data[0]}' already exists")
                     hub_list.append(Creator.create_hubs(data, meta_data))
 
                 # valida os dados da conexão e cria o objeto Connection
@@ -54,9 +60,19 @@ class Parser:
                     for hub in hub_list:
                         hub_list_name.append(hub.name)
                     datas = ValidateDatas.connection_validate(key, value)
+
                     if len(datas) < 1:
                         raise TypeError(f"The '{key}' has no data.")
                     endpoints, meta_data = datas
+
+                    connection_id = tuple(sorted(endpoints))
+                    if connection_id in connect_set:
+                        raise ParserError(
+                            "Duplicate connection: "
+                            f"{endpoints[0]}-{endpoints[1]}"
+                        )
+                    connect_set.add(connection_id)
+
                     connect_list.append(
                         Creator.create_connections(
                             endpoints,
@@ -64,12 +80,7 @@ class Parser:
                             hub_list_name
                         )
                     )
-        # apagar esse prints depois.
-        # print("--------Lista de hubs----------\n")
-        # print(*hub_list, sep="\n")
 
-        # print("\n--------Lista de conexões----------\n")
-        # print(*connect_list, sep="\n")
         return (hub_list, connect_list, nb_drone)
 
 
@@ -139,6 +150,11 @@ class ValidateDatas:
             raise ParserError(" There is no data for the connection.")
 
         endpoints = raw.split("-")
+        if endpoints[0] == endpoints[1]:
+            raise ParserError(
+                "The connection should not connect to itself: "
+                f"'{endpoints[0]}-{endpoints[1]}'"
+            )
         if len(endpoints) != 2 or not endpoints[0] or not endpoints[1]:
             raise ParserError(
                 f"Invalid connection format in: "

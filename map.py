@@ -1,6 +1,6 @@
 from pydantic import Field, BaseModel, model_validator
 from PIL import Image
-from collections import deque
+# from collections import deque
 
 
 class Hub(BaseModel):
@@ -57,13 +57,13 @@ class Hub(BaseModel):
             base = Image.open("images/hubs/start_base.png").convert("RGBA")
             mask = Image.open("images/hubs/start_mask.png").convert("L")
 
-        elif self.name == "goal":
-            base = Image.open("images/hubs/end_base.png").convert("RGBA")
-            mask = Image.open("images/hubs/end_mask.png").convert("L")
-
         elif self.name == "impossible_goal":
             base = Image.open("images/hubs/rainbow_hub.png").convert("RGBA")
             mask = Image.open("images/hubs/rb_hub.png").convert("L")
+
+        elif "goal" in self.name:
+            base = Image.open("images/hubs/end_base.png").convert("RGBA")
+            mask = Image.open("images/hubs/end_mask.png").convert("L")
 
         else:
             base = Image.open(f"{self.model}_base.png").convert("RGBA")
@@ -108,8 +108,10 @@ class Hub(BaseModel):
 
         if "zone" in metadata:
             self.zone = metadata["zone"]
-            if self.zone == "restrict":
+            if self.zone == "restricted":
                 self.cost = 2
+            # elif self.zone == "normal":
+            #     self.cost = 2
 
             self.model = models[self.zone]
 
@@ -167,7 +169,7 @@ class Map():
         for hub in self.list_hub:
             hub.mount_image_hub()
 
-    def create_graph(self) -> list[str]:
+    def create_graph(self) -> dict[str, list[str]]:
         graph = {}
 
         for conn in self.list_conex:
@@ -204,7 +206,7 @@ class Map():
         graph = self.create_graph()
 
         start = "start"
-        goal = "goal"
+        goal = next(hub.name for hub in self.list_hub if hub.end_hub)
 
         distances = {node: float("inf") for node in graph}
         previous = {node: None for node in graph}
@@ -213,6 +215,7 @@ class Map():
         unvisited = set(graph.keys())
 
         while unvisited:
+
             current = min(unvisited, key=lambda node: distances[node])
             unvisited.remove(current)
 
@@ -230,7 +233,10 @@ class Map():
 
                 new_distance = distances[current] + hub.cost
 
-                if new_distance < distances[neighbor]:
+                if new_distance < distances[neighbor] or (
+                    new_distance == distances[neighbor]
+                    and hub.zone == "priority"
+                ):
                     distances[neighbor] = new_distance
                     previous[neighbor] = current
 
@@ -246,69 +252,6 @@ class Map():
 
         path.reverse()
         return path
-
-        # graph = self.create_graph()
-        # start = "start"
-        # goal = "goal"
-
-        # distances = {node: float("inf") for node in graph}
-        # distances[start] = 0
-
-        # previous_nodes = {node: None for node in graph}
-
-        # unvisited_nodes = set(graph.keys())
-
-        # while unvisited_nodes:
-        #     current_node = min(
-        #         unvisited_nodes, key=lambda node: distances[node]
-        #     )
-        #     unvisited_nodes.remove(current_node)
-
-        #     if distances[current_node] == float("inf"):
-        #         break
-
-        #     for neighbor in graph[current_node]:
-        #         hub = self.get_hub_by_name(neighbor)
-        #         if hub is None:
-        #             continue
-
-        #         cost = hub.cost
-        #         new_distance = distances[current_node] + cost
-
-        #         if new_distance < distances[neighbor]:
-        #             distances[neighbor] = new_distance
-        #             previous_nodes[neighbor] = current_node
-
-        # path = []
-        # current_node = goal
-        # while current_node is not None:
-        #     path.append(current_node)
-        #     current_node = previous_nodes[current_node]
-
-        # path.reverse()
-        # return path
-
-    # def find_path_w_bfs(self) -> list[str]:
-    #     graph = self.create_graph()
-
-    #     queue = deque()
-    #     queue.append(("start", ["start"]))
-
-    #     visited = []
-
-    #     while queue:
-    #         # popleft remove e devolve o primeiro elemento da fila
-    #         current, path = queue.popleft()
-    #         if current == "goal":
-    #             return path
-
-    #         if current not in visited:
-    #             visited.append(current)
-    #             for neighbor in graph[current]:
-    #                 if neighbor not in visited:
-    #                     new_path = path + [neighbor]
-    #                     queue.append((neighbor, new_path))
-    #     return []
 
     def create_drone(self) -> list[Drone]:
         drone_list: list[Drone] = []
@@ -379,7 +322,7 @@ class Map():
             first_conn.drones_on_link.append(drone.name)
 
     def move_drone(self) -> None:
-        # self.release_start_drones()
+
         for drone in self.list_drone:
             if drone.moving or drone.target_hub is not None:
                 continue
