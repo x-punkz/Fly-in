@@ -15,6 +15,7 @@ class Hub(BaseModel):
     start_hub: bool = Field(default=False)
     end_hub: bool = Field(default=False)
     image_cache: dict = {}
+    cost: int = Field(default=1, ge=1)
 
     @model_validator(mode="after")
     def _(self) -> 'Hub':
@@ -107,6 +108,9 @@ class Hub(BaseModel):
 
         if "zone" in metadata:
             self.zone = metadata["zone"]
+            if self.zone == "restrict":
+                self.cost = 2
+
             self.model = models[self.zone]
 
     def set_start_end(self) -> None:
@@ -195,30 +199,73 @@ class Map():
 
         return count
 
-    def find_path_w_dijkstra(self) -> list[str]:
-        pass
-
     def find_path_w_bfs(self) -> list[str]:
+        node: float("inf")
         graph = self.create_graph()
+        
+        dist = {node for node in self.graph}
+        # graph = self.create_graph()
+        # start = "start"
+        # goal = "goal"
 
-        queue = deque()
-        queue.append(("start", ["start"]))
+        # distances = {node: float("inf") for node in graph}
+        # distances[start] = 0
 
-        visited = []
+        # previous_nodes = {node: None for node in graph}
 
-        while queue:
-            # popleft remove e devolve o primeiro elemento da fila
-            current, path = queue.popleft()
-            if current == "goal":
-                return path
+        # unvisited_nodes = set(graph.keys())
 
-            if current not in visited:
-                visited.append(current)
-                for neighbor in graph[current]:
-                    if neighbor not in visited:
-                        new_path = path + [neighbor]
-                        queue.append((neighbor, new_path))
-        return []
+        # while unvisited_nodes:
+        #     current_node = min(
+        #         unvisited_nodes, key=lambda node: distances[node]
+        #     )
+        #     unvisited_nodes.remove(current_node)
+
+        #     if distances[current_node] == float("inf"):
+        #         break
+
+        #     for neighbor in graph[current_node]:
+        #         hub = self.get_hub_by_name(neighbor)
+        #         if hub is None:
+        #             continue
+
+        #         cost = hub.cost
+        #         new_distance = distances[current_node] + cost
+
+        #         if new_distance < distances[neighbor]:
+        #             distances[neighbor] = new_distance
+        #             previous_nodes[neighbor] = current_node
+
+        # path = []
+        # current_node = goal
+        # while current_node is not None:
+        #     path.append(current_node)
+        #     current_node = previous_nodes[current_node]
+
+        # path.reverse()
+        # return path
+
+    # def find_path_w_bfs(self) -> list[str]:
+    #     graph = self.create_graph()
+
+    #     queue = deque()
+    #     queue.append(("start", ["start"]))
+
+    #     visited = []
+
+    #     while queue:
+    #         # popleft remove e devolve o primeiro elemento da fila
+    #         current, path = queue.popleft()
+    #         if current == "goal":
+    #             return path
+
+    #         if current not in visited:
+    #             visited.append(current)
+    #             for neighbor in graph[current]:
+    #                 if neighbor not in visited:
+    #                     new_path = path + [neighbor]
+    #                     queue.append((neighbor, new_path))
+    #     return []
 
     def create_drone(self) -> list[Drone]:
         drone_list: list[Drone] = []
@@ -289,7 +336,7 @@ class Map():
             first_conn.drones_on_link.append(drone.name)
 
     def move_drone(self) -> None:
-        self.release_start_drones()
+        # self.release_start_drones()
         for drone in self.list_drone:
             if drone.moving or drone.target_hub is not None:
                 continue
@@ -299,7 +346,8 @@ class Map():
                 continue
 
             if not drone.active:
-                continue
+                drone.active = True
+                # continue
 
             if drone.path_index >= len(drone.path) - 1:
                 continue
@@ -319,7 +367,15 @@ class Map():
             if next_hub.zone == "blocked":
                 continue
 
-            if next_hub.drones_in_hub >= next_hub.max_drones:
+            drones_coming = sum(
+                1 for d in self.list_drone
+                if d.target_hub == next_hub
+            )
+
+            if (
+                next_hub.drones_in_hub + drones_coming
+                >= next_hub.max_drones
+            ):
                 continue
 
             if drone.name not in next_connection.drones_on_link:

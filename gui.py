@@ -602,21 +602,21 @@ class App:
 
                         print("Reset")
 
-            if frame_count % 60 == 0:
-                if simulation_running and frame_count % 60 == 0:
+            if frame_count % 60 == 0 and simulation_running:
+                # if simulation_running:
 
-                    moving = False
-                    for drone in mapper.list_drone:
-                        if drone.moving:
-                            moving = True
-                            break
+                moving = False
+                for drone in mapper.list_drone:
+                    if drone.moving:
+                        moving = True
+                        break
 
-                    if not moving:
-                        target = "start" if mapper.reverse else end_hub.name
+                if not moving:
+                    target = "start" if mapper.reverse else end_hub.name
 
-                        if mapper.drones_in_hub(target) < mapper.nb_drone:
-                            turn += 1
-                            mapper.move_drone()
+                    if mapper.drones_in_hub(target) < mapper.nb_drone:
+                        turn += 1
+                        mapper.move_drone()
 
             self.animate_drones(mapper)
 
