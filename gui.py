@@ -198,6 +198,10 @@ class App:
                         break
 
                 drone.current_hub = drone.target_hub
+                # mudança estranha
+                if not mapper.reverse:
+                    drone.final_path.append(drone.current_hub.name)
+
                 drone.current_hub.drones_in_hub += 1
 
                 if drone.current_hub.zone in ("normal", "priority"):

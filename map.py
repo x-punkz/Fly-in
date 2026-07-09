@@ -143,6 +143,7 @@ class Drone(BaseModel):
     screen_y: float = 0
     target_hub: Hub | None = None
     path: list[str] = []
+    final_path: list[str] = []
     path_index: int = 0
     active: bool = False
     current_connection: str | None = None
@@ -201,15 +202,18 @@ class Map():
 
         return count
 
-    def find_path_w_dijkstra(self) -> list[str]:
+    def find_path_w_dijkstra(
+            self,
+            start: str,
+            ) -> list[str]:
         # codigo do gpt
         graph = self.create_graph()
 
-        start = "start"
+        # start = "start"
         goal = next(hub.name for hub in self.list_hub if hub.end_hub)
 
         distances = {node: float("inf") for node in graph}
-        previous = {node: None for node in graph}
+        previous: dict[str, list[str]] = {node: None for node in graph}
 
         distances[start] = 0
         unvisited = set(graph.keys())
@@ -231,14 +235,18 @@ class Map():
                 if hub is None or hub.zone == "blocked":
                     continue
 
-                new_distance = distances[current] + hub.cost
+                penalty = hub.drones_in_hub
+                if hub.drones_in_hub >= hub.max_drones:
+                    penalty += 1000
 
-                if new_distance < distances[neighbor] or (
-                    new_distance == distances[neighbor]
-                    and hub.zone == "priority"
-                ):
+                new_distance = distances[current] + hub.cost + penalty
+
+                if new_distance < distances[neighbor]:
                     distances[neighbor] = new_distance
                     previous[neighbor] = current
+
+                # distances[neighbor] = new_distance
+                # previous[neighbor] = current
 
         if distances[goal] == float("inf"):
             return []
@@ -257,7 +265,7 @@ class Map():
         drone_list: list[Drone] = []
         start_hub = self.get_hub_by_name("start")
         start_hub.drones_in_hub = self.nb_drone
-        route = self.find_path_w_dijkstra()
+        route = self.find_path_w_dijkstra("start")
 
         for i in range(self.nb_drone):
             drone = Drone(
@@ -265,6 +273,7 @@ class Map():
                 current_hub=start_hub,
                 path_index=0,
                 path=route,
+                final_path=["start"],
                 active=False
             )
             drone_list.append(drone)
@@ -287,6 +296,9 @@ class Map():
             or len(self.list_drone[0].path) < 2
         ):
             return
+
+        if not self.list_drone[0].path:
+            self.list_drone[0].path = self.find_path_w_dijkstra("start")
 
         first_conn = self.get_connection(
             self.list_drone[0].path[0],
@@ -334,6 +346,12 @@ class Map():
             if not drone.active:
                 drone.active = True
                 # continue
+
+            drone.path = self.find_path_w_dijkstra(
+                drone.current_hub.name
+            )
+
+            drone.path_index = 0
 
             if drone.path_index >= len(drone.path) - 1:
                 continue
