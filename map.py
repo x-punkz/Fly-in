@@ -204,16 +204,15 @@ class Map():
 
     def find_path_w_dijkstra(
             self,
-            start: str,
+            start: str
             ) -> list[str]:
-        # codigo do gpt
-        graph = self.create_graph()
 
+        graph = self.create_graph()
         # start = "start"
         goal = next(hub.name for hub in self.list_hub if hub.end_hub)
 
         distances = {node: float("inf") for node in graph}
-        previous: dict[str, list[str]] = {node: None for node in graph}
+        previous = {node: None for node in graph}
 
         distances[start] = 0
         unvisited = set(graph.keys())
@@ -236,17 +235,22 @@ class Map():
                     continue
 
                 penalty = hub.drones_in_hub
+
+                conn = self.get_connection(current, neighbor)
+
+                if conn is not None:
+                    penalty += len(conn.drones_on_link)
+                    if len(conn.drones_on_link) >= conn.max_link_capacity:
+                        penalty += len(conn.drones_on_link)
+
                 if hub.drones_in_hub >= hub.max_drones:
-                    penalty += 1000
+                    penalty += hub.drones_in_hub
 
                 new_distance = distances[current] + hub.cost + penalty
 
                 if new_distance < distances[neighbor]:
                     distances[neighbor] = new_distance
                     previous[neighbor] = current
-
-                # distances[neighbor] = new_distance
-                # previous[neighbor] = current
 
         if distances[goal] == float("inf"):
             return []
