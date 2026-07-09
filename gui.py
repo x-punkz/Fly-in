@@ -198,6 +198,7 @@ class App:
                         break
 
                 drone.current_hub = drone.target_hub
+
                 # mudança estranha
                 if not mapper.reverse:
                     drone.final_path.append(drone.current_hub.name)

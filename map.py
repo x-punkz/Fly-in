@@ -145,6 +145,7 @@ class Drone(BaseModel):
     path: list[str] = []
     final_path: list[str] = []
     path_index: int = 0
+    # path_cost: float = float("inf")
     active: bool = False
     current_connection: str | None = None
     waiting_turns: int = 0
@@ -208,6 +209,7 @@ class Map():
             ) -> list[str]:
 
         graph = self.create_graph()
+
         # start = "start"
         goal = next(hub.name for hub in self.list_hub if hub.end_hub)
 
@@ -246,7 +248,7 @@ class Map():
                 if hub.drones_in_hub >= hub.max_drones:
                     penalty += hub.drones_in_hub
 
-                new_distance = distances[current] + hub.cost + penalty
+                new_distance = distances[current] + (hub.cost * 2) + penalty
 
                 if new_distance < distances[neighbor]:
                     distances[neighbor] = new_distance
