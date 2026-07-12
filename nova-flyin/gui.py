@@ -25,14 +25,24 @@ class App:
         self.goal_button = pygame.image.load("images/buttons/goal.png")
 
         screen_info: pygame.display._VidInfo = pygame.display.Info()
-        self.width: int = int(screen_info.current_w)
-        self.height: int = int(1016)
+        self.base_width: int = 1600
+        self.base_height: int = 1016
+        self.width: int = 1600
+        self.height: int = 1016
+        if screen_info.current_w > 0 and screen_info.current_h > 0:
+            self.width = min(self.width, max(960, int(screen_info.current_w)))
+            self.height = min(self.height, max(720, int(screen_info.current_h)))
 
         self.window = pygame.display.set_mode((self.width, self.height),
                                               pygame.RESIZABLE)
-        self.virtual_window = pygame.Surface((self.width, self.height))
-        self.game = pygame.Surface((self.width * 3/4, self.height))
-        self.menu = pygame.Surface((self.width * 1/4, self.height))
+        self.virtual_window = pygame.Surface((self.base_width, self.base_height),
+                                             pygame.SRCALPHA)
+        self.game = pygame.Surface((int(self.base_width * 3 / 4),
+                                    self.base_height),
+                                   pygame.SRCALPHA)
+        self.menu = pygame.Surface((int(self.base_width * 1 / 4),
+                                    self.base_height),
+                                   pygame.SRCALPHA)
         game_color = (255, 255, 255)
         self.menu.fill(game_color)
         self.font_name = "images/font/Michroma-Regular.ttf"
@@ -141,26 +151,58 @@ class App:
 
         return positions, scale
 
+    def get_window_scale(self) -> tuple[float, float, int, int]:
+        window_w, window_h = self.window.get_size()
+        if window_w <= 0 or window_h <= 0:
+            return 1.0, 1.0, 0, 0
+
+        scale_x = window_w / self.base_width
+        scale_y = window_h / self.base_height
+        if scale_x <= 0 or scale_y <= 0:
+            return 1.0, 1.0, 0, 0
+
+        return scale_x, scale_y, 0, 0
+
+    def render_to_window(self) -> None:
+        scale_x, scale_y, _, _ = self.get_window_scale()
+        if scale_x <= 0 or scale_y <= 0:
+            return
+
+        scaled_surface = pygame.transform.smoothscale(
+            self.virtual_window,
+            (int(self.base_width * scale_x), int(self.base_height * scale_y))
+        )
+
+        self.window.fill((0, 0, 0))
+        self.window.blit(scaled_surface, (0, 0))
+
+    def to_virtual_coordinates(self, pos: tuple[int, int]) -> tuple[float, float]:
+        scale_x, scale_y, _, _ = self.get_window_scale()
+        if scale_x <= 0 or scale_y <= 0:
+            return pos[0], pos[1]
+
+        virtual_x = pos[0] / scale_x
+        virtual_y = pos[1] / scale_y
+        return virtual_x, virtual_y
+
     def draw_drone(self, mapper: Map) -> None:
         '''
             desenha os drones na tela
         '''
 
-        # positions, _ = self.calc_screen_positions(mapper)
-        for i, drone in enumerate(mapper.list_drone):
+        stack_count: dict[str, int] = {}
+
+        for drone in mapper.list_drone:
+            hub_name = drone.current_hub.name if drone.current_hub else ""
+            stack_index = stack_count.get(hub_name, 0)
+            stack_count[hub_name] = stack_index + 1
+
             pos = (drone.screen_x, drone.screen_y)
 
-            offset_x = i * 0
-            offset_y = -i * 15
+            offset_x = 0
+            offset_y = -stack_index * 15
             img = pygame.transform.scale(self.drone_img, (100, 100))
 
-            # self.game.blit(
-            #     img,
-            #     (
-            #         pos[0] - img.get_width() // 2,
-            #         pos[1] - img.get_height() // 2
-            #     )
-            #  usar quando usar offset
             self.game.blit(
                 img,
                 (
@@ -174,23 +216,40 @@ class App:
             Anima os drones fazendo eles andarem alguns pixels por frame
         '''
         positions, _ = self.calc_screen_positions(mapper)
-        speed = 6
+        move_speed = 8
 
         for drone in mapper.list_drone:
             if drone.target_hub is None:
                 continue
 
+            if drone.paused_on_link:
+                continue
+
             target_pos = positions[drone.target_hub.name]
+            if drone.link_pause_pending:
+                start_pos = positions[drone.current_hub.name]
+                target_pos = (
+                    (start_pos[0] + target_pos[0]) / 2,
+                    (start_pos[1] + target_pos[1]) / 2,
+                )
             target_x = target_pos[0]
             target_y = target_pos[1]
 
             # dx,dy == distancia horiz e distancia vert
             dx = target_x - drone.screen_x
             dy = target_y - drone.screen_y
+            distance = (dx * dx + dy * dy) ** 0.5
 
-            if abs(dx) <= speed and abs(dy) <= speed:
+            if distance <= move_speed:
                 drone.screen_x = target_x
                 drone.screen_y = target_y
+
+                if drone.link_pause_pending:
+                    drone.link_pause_pending = False
+                    drone.paused_on_link = True
+                    drone.waiting_at_midpoint = True
+                    drone.moving = False
+                    continue
 
                 for conn in mapper.list_conex:
                     if drone.name in conn.drones_on_link:
@@ -198,6 +257,7 @@ class App:
                         break
 
                 drone.current_hub = drone.target_hub
+                drone.waiting_at_midpoint = False
 
                 # mudança estranha
                 if not mapper.reverse:
@@ -208,18 +268,17 @@ class App:
                 if drone.current_hub.zone in ("normal", "priority"):
                     drone.waiting_turns = 0
                 elif drone.current_hub.zone == "restricted":
-                    drone.waiting_turns = 1
+                    drone.waiting_turns = 0
 
                 drone.target_hub = None
                 drone.path_index += 1
                 drone.moving = False
             else:
-                distance = (dx * dx + dy * dy) ** 0.5
                 dir_x = dx / distance
                 dir_y = dy / distance
 
-                drone.screen_x += dir_x * speed
-                drone.screen_y += dir_y * speed
+                drone.screen_x += dir_x * move_speed
+                drone.screen_y += dir_y * move_speed
 
     def draw_map(self, mapper: Map) -> None:
         '''
@@ -555,20 +614,23 @@ class App:
                 if event.type == pygame.QUIT:
                     running = False
                 if event.type == pygame.MOUSEBUTTONDOWN:
+                    virtual_mouse = self.to_virtual_coordinates(event.pos)
+                    if virtual_mouse[0] < self.game.get_width():
+                        continue
 
-                    mouse = (
-                        event.pos[0] - self.game.get_width(),
-                        event.pos[1]
+                    menu_mouse = (
+                        virtual_mouse[0] - self.game.get_width(),
+                        virtual_mouse[1]
                     )
 
-                    if self.start_button.collidepoint(mouse):
+                    if self.start_button.collidepoint(menu_mouse):
                         simulation_running = True
 
-                    elif self.stop_button.collidepoint(mouse):
+                    elif self.stop_button.collidepoint(menu_mouse):
                         simulation_running = False
                         print("Stop")
 
-                    elif self.reverse_button.collidepoint(mouse):
+                    elif self.reverse_button.collidepoint(menu_mouse):
                         if (
                             mapper.drones_in_hub(end_hub.name)
                             != mapper.nb_drone
@@ -584,7 +646,7 @@ class App:
                             simulation_running = True
 
                             for drone in mapper.list_drone:
-                                drone.path = drone.path[::-1]
+                                drone.path = drone.final_path[::-1]
                                 drone.path_index = 0
                                 drone.current_connection = None
                                 drone.target_hub = None
@@ -593,7 +655,7 @@ class App:
 
                             print("reverse")
 
-                    elif self.reset_button.collidepoint(mouse):
+                    elif self.reset_button.collidepoint(menu_mouse):
                         simulation_running = False
                         turn = 0
                         frame_count = 0
@@ -625,7 +687,10 @@ class App:
 
             self.animate_drones(mapper)
 
-            self.game.blit(self.bg,  (0, 0))
+            self.game.blit(
+                pygame.transform.scale(self.bg, self.game.get_size()),
+                (0, 0)
+            )
             self.draw_map(mapper)
             self.draw_drone(mapper)
             self.draw_menu(mapper, turn)
@@ -647,11 +712,7 @@ class App:
             self.virtual_window.blit(self.game, (0, 0))
             self.virtual_window.blit(self.menu, (self.game.get_width(), 0))
 
-            height = self.window.get_height()
-            width = self.window.get_width()
-            change_size = pygame.transform.scale(self.virtual_window,
-                                                 (width, height))
-            self.window.blit(change_size, (0, 0))
+            self.render_to_window()
             # desenha bg, conexões e hubs em self.game
 
             pygame.display.flip()

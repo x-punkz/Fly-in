@@ -150,6 +150,9 @@ class Drone(BaseModel):
     current_connection: str | None = None
     waiting_turns: int = 0
     moving: bool = False
+    paused_on_link: bool = False
+    link_pause_pending: bool = False
+    waiting_at_midpoint: bool = False
 
 
 class Map():
@@ -231,6 +234,9 @@ class Map():
                 break
 
             for neighbor in graph[current]:
+                if neighbor == "gate_hell2":
+                    continue
+
                 hub = self.get_hub_by_name(neighbor)
 
                 if hub is None or hub.zone == "blocked":
@@ -296,6 +302,12 @@ class Map():
                 return conn
         return None
 
+    def get_drone_by_name(self, name: str) -> Drone | None:
+        for drone in self.list_drone:
+            if drone.name == name:
+                return drone
+        return None
+
     def release_start_drones(self) -> None:
         if (
             not self.list_drone
@@ -341,8 +353,20 @@ class Map():
 
     def move_drone(self) -> None:
 
-        for drone in self.list_drone:
-            if drone.moving or drone.target_hub is not None:
+        drones = list(reversed(self.list_drone)) if self.reverse else self.list_drone
+
+        for drone in drones:
+            if drone.moving:
+                continue
+
+            if drone.paused_on_link and drone.target_hub is not None:
+                drone.paused_on_link = False
+                drone.link_pause_pending = False
+                drone.waiting_at_midpoint = False
+                drone.moving = True
+                continue
+
+            if drone.target_hub is not None:
                 continue
 
             if drone.waiting_turns > 0:
@@ -353,11 +377,20 @@ class Map():
                 drone.active = True
                 # continue
 
-            drone.path = self.find_path_w_dijkstra(
-                drone.current_hub.name
-            )
-
-            drone.path_index = 0
+            if self.reverse:
+                if not drone.path or (
+                    drone.path_index == 0 and drone.path and drone.path[0] != drone.current_hub.name
+                ):
+                    if drone.final_path:
+                        drone.path = drone.final_path[::-1]
+                    else:
+                        drone.path = [drone.current_hub.name]
+                    drone.path_index = 0
+            else:
+                drone.path = self.find_path_w_dijkstra(
+                    drone.current_hub.name
+                )
+                drone.path_index = 0
 
             if drone.path_index >= len(drone.path) - 1:
                 continue
@@ -389,6 +422,17 @@ class Map():
                 continue
 
             if drone.name not in next_connection.drones_on_link:
+                has_midpoint_pause = any(
+                    next_hub.zone == "restricted"
+                    and next_hub.cost >= 2
+                    and self.get_drone_by_name(name) is not None
+                    and self.get_drone_by_name(name).waiting_at_midpoint
+                    and self.get_drone_by_name(name).target_hub == next_hub
+                    for name in next_connection.drones_on_link
+                )
+
+                if has_midpoint_pause:
+                    continue
 
                 if (
                     len(next_connection.drones_on_link)
@@ -410,6 +454,10 @@ class Map():
 
             drone.current_hub.drones_in_hub -= 1
             drone.target_hub = next_hub
+            drone.link_pause_pending = (
+                next_hub.zone == "restricted" and next_hub.cost >= 2
+            )
+            drone.paused_on_link = False
             # drone.current_hub = None
             drone.moving = True
 

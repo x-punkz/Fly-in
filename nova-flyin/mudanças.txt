@@ -1,0 +1,140 @@
+--- Ajustes recentes ---
+
+### Tela responsiva e janela virtual
+```python
+# gui.py
+self.virtual_window = pygame.Surface((self.base_width, self.base_height), pygame.SRCALPHA)
+self.game = pygame.Surface((int(self.base_width * 3 / 4), self.base_height), pygame.SRCALPHA)
+self.menu = pygame.Surface((int(self.base_width * 1 / 4), self.base_height), pygame.SRCALPHA)
+
+self.window = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
+```
+
+```python
+# gui.py
+def render_to_window(self) -> None:
+    scale_x, scale_y, _, _ = self.get_window_scale()
+    scaled_surface = pygame.transform.smoothscale(
+        self.virtual_window,
+        (int(self.base_width * scale_x), int(self.base_height * scale_y))
+    )
+    self.window.blit(scaled_surface, (0, 0))
+```
+
+### Menu como superfície virtual
+```python
+# gui.py
+self.virtual_window.blit(self.game, (0, 0))
+self.virtual_window.blit(self.menu, (self.game.get_width(), 0))
+self.render_to_window()
+```
+
+### Fluxo de turnos e avanço de simulação
+```python
+# gui.py
+if frame_count % 60 == 0 and simulation_running:
+    moving = False
+    for drone in mapper.list_drone:
+        if drone.moving:
+            moving = True
+            break
+
+    if not moving:
+        target = "start" if mapper.reverse else end_hub.name
+
+        if mapper.drones_in_hub(target) < mapper.nb_drone:
+            turn += 1
+            mapper.move_drone()
+```
+
+### Pausa em hub restricted
+```python
+# map.py
+if drone.paused_on_link and drone.target_hub is not None:
+    drone.paused_on_link = False
+    drone.link_pause_pending = False
+    drone.waiting_at_midpoint = False
+    drone.moving = True
+    continue
+```
+
+```python
+# gui.py
+if drone.link_pause_pending:
+    start_pos = positions[drone.current_hub.name]
+    target_pos = (
+        (start_pos[0] + target_pos[0]) / 2,
+        (start_pos[1] + target_pos[1]) / 2,
+    )
+```
+
+```python
+# gui.py
+if drone.link_pause_pending:
+    drone.link_pause_pending = False
+    drone.paused_on_link = True
+    drone.moving = False
+    continue
+```
+
+### Lógica de reverse
+```python
+# gui.py
+for drone in mapper.list_drone:
+    drone.path = drone.final_path[::-1]
+    drone.path_index = 0
+    drone.current_connection = None
+    drone.target_hub = None
+    drone.active = False
+    drone.moving = False
+```
+
+```python
+# map.py
+if self.reverse:
+    if not drone.path or (
+        drone.path_index == 0 and drone.path and drone.path[0] != drone.current_hub.name
+    ):
+        if drone.final_path:
+            drone.path = drone.final_path[::-1]
+        else:
+            drone.path = [drone.current_hub.name]
+        drone.path_index = 0
+else:
+    drone.path = self.find_path_w_dijkstra(drone.current_hub.name)
+    drone.path_index = 0
+```
+
+### Ordem de saída no reverse
+```python
+# map.py
+drones = list(reversed(self.list_drone)) if self.reverse else self.list_drone
+
+for drone in drones:
+    ...
+```
+
+### Altura de drone por hub
+```python
+# gui.py
+stack_count: dict[str, int] = {}
+
+for drone in mapper.list_drone:
+    hub_name = drone.current_hub.name if drone.current_hub else ""
+    stack_index = stack_count.get(hub_name, 0)
+    stack_count[hub_name] = stack_index + 1
+
+    pos = (drone.screen_x, drone.screen_y)
+    offset_x = 0
+    offset_y = -stack_index * 15
+```
+
+### Ignorar caminho via gate_hell2
+```python
+# map.py
+for neighbor in graph[current]:
+    if neighbor == "gate_hell2":
+        continue
+
+    hub = self.get_hub_by_name(neighbor)
+```

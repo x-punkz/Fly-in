@@ -22,7 +22,7 @@ debug:
 	$(VENV_PYTHON) -m pdb gui.py
 
 venv:
-	@python -m venv fly_venv
+	@$(PYTHON) -m venv fly_venv
 	@make install
 	@echo "$(ROXO) Run: 'source fly_venv/bin/activate' for activate the venv$(RESET)"
 
