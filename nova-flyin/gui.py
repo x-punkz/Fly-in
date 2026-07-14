@@ -1,4 +1,3 @@
-
 from validate import Parser
 from map import Map, Hub
 from sys import argv, exc_info
@@ -31,11 +30,14 @@ class App:
         self.height: int = 1016
         if screen_info.current_w > 0 and screen_info.current_h > 0:
             self.width = min(self.width, max(960, int(screen_info.current_w)))
-            self.height = min(self.height, max(720, int(screen_info.current_h)))
+            self.height = min(self.height, max(720,
+                                               int(screen_info.current_h)
+                                               ))
 
         self.window = pygame.display.set_mode((self.width, self.height),
                                               pygame.RESIZABLE)
-        self.virtual_window = pygame.Surface((self.base_width, self.base_height),
+        self.virtual_window = pygame.Surface((self.base_width,
+                                              self.base_height),
                                              pygame.SRCALPHA)
         self.game = pygame.Surface((int(self.base_width * 3 / 4),
                                     self.base_height),
@@ -85,7 +87,9 @@ class App:
         return Map(list_hub=hubs, list_conex=connections, nb_drone=nb_drone)
 
     def calc_screen_positions(self,
-                              mapper: Map) -> tuple[dict[str, tuple], int]:
+                              mapper: Map) -> tuple[dict[str,
+                                                         tuple[int, int]
+                                                         ], float]:
         '''
             Calcula as posicoes das coordenadas p printar na tela
             Agora aplicando uma transformação isométrica (coordenadas giradas)
@@ -144,10 +148,7 @@ class App:
         for name, (rot_x, rot_y) in rotated_coords.items():
 
             positions[name] = to_screen(rot_x, rot_y)
-        # calcula posicoes na tela a partir das coordenadas rotacionadas
-        # positions = {
-        #     name: to_screen(*coord) for name, coord in rotated_coords.items()
-        #     }
+            # calcula posicoes na tela a partir das coordenadas rotacionadas
 
         return positions, scale
 
@@ -176,7 +177,10 @@ class App:
         self.window.fill((0, 0, 0))
         self.window.blit(scaled_surface, (0, 0))
 
-    def to_virtual_coordinates(self, pos: tuple[int, int]) -> tuple[float, float]:
+    def to_virtual_coordinates(
+            self,
+            pos: tuple[int, int]
+            ) -> tuple[float, float]:
         scale_x, scale_y, _, _ = self.get_window_scale()
         if scale_x <= 0 or scale_y <= 0:
             return pos[0], pos[1]
@@ -193,7 +197,8 @@ class App:
         stack_count: dict[str, int] = {}
 
         for drone in mapper.list_drone:
-            hub_name = drone.current_hub.name if drone.current_hub else ""
+            current_hub = drone.current_hub
+            hub_name = current_hub.name if current_hub is not None else ""
             stack_index = stack_count.get(hub_name, 0)
             stack_count[hub_name] = stack_index + 1
 
@@ -219,15 +224,17 @@ class App:
         move_speed = 8
 
         for drone in mapper.list_drone:
-            if drone.target_hub is None:
+            current_hub = drone.current_hub
+            target_hub = drone.target_hub
+            if current_hub is None or target_hub is None:
                 continue
 
             if drone.paused_on_link:
                 continue
 
-            target_pos = positions[drone.target_hub.name]
+            target_pos: tuple[float, float] = positions[target_hub.name]
             if drone.link_pause_pending:
-                start_pos = positions[drone.current_hub.name]
+                start_pos = positions[current_hub.name]
                 target_pos = (
                     (start_pos[0] + target_pos[0]) / 2,
                     (start_pos[1] + target_pos[1]) / 2,
@@ -256,7 +263,7 @@ class App:
                         conn.drones_on_link.remove(drone.name)
                         break
 
-                drone.current_hub = drone.target_hub
+                drone.current_hub = target_hub
                 drone.waiting_at_midpoint = False
 
                 # mudança estranha
@@ -313,14 +320,13 @@ class App:
             pos_y = pos[1]
             try:
                 pil_img = hub.mount_image_hub()
-                mode = pil_img.mode
                 size = pil_img.size
                 data = pil_img.tobytes()
 
                 img = pygame.image.frombytes(
                     data,
                     size,
-                    mode
+                    "RGBA"
                 )
                 # Ajusta o tamanho
                 img = pygame.transform.scale(img, (icon_size, icon_size))
@@ -372,7 +378,7 @@ class App:
             2,
         )
 
-    def draw_button_border(self, name: str, rect: pygame.rect) -> None:
+    def draw_button_border(self, name: str, rect: pygame.Rect) -> None:
         if name == "start":
             name = "/images/buttons/start"
         elif name == "stop":
@@ -398,11 +404,14 @@ class App:
         # Desenha as informaçoes
         self.menu.fill((2, 2, 2))
 
-        end_hub = None
+        end_hub: Hub | None = None
         for hub in mapper.list_hub:
             if hub.end_hub:
                 end_hub = hub
                 break
+
+        if end_hub is None:
+            return
 
         # Desenha a borda do menu
         self.draw_menu_border()
@@ -451,27 +460,30 @@ class App:
         # logo
         self.menu.blit(self.turn_button, (60, 175))
 
-        self.menu.blit(font.render(
+        turns_text = font.render(
             f"TURNS                         {turn}",
             True,
-            (0, 255, 255)),
-            (105, 175))
+            (0, 255, 255),
+        )
+        self.menu.blit(turns_text, (105, 175))
 
         # logo
         self.menu.blit(self.drone_button, (60, 225))
-        self.menu.blit(
-            font.render(f"DRONES                     {mapper.nb_drone}",
-                        True,
-                        (0, 255, 255)), (105, 225)
+        drones_text = font.render(
+            f"DRONES                     {mapper.nb_drone}",
+            True,
+            (0, 255, 255),
         )
+        self.menu.blit(drones_text, (105, 225))
 
         self.menu.blit(self.goal_button, (60, 280))
-        self.menu.blit(
-            font.render(
-                "GOAL                        "
-                f"{mapper.drones_in_hub(end_hub.name)}/{mapper.nb_drone}",
-                True, (0, 255, 255)), (105, 280)
-            )
+        goal_text = font.render(
+            "GOAL                        "
+            f"{mapper.drones_in_hub(end_hub.name)}/{mapper.nb_drone}",
+            True,
+            (0, 255, 255),
+        )
+        self.menu.blit(goal_text, (105, 280))
 
         # CONTROLS
         text3 = font_title.render("CONTROLS", False, (0, 255, 255))
@@ -591,7 +603,7 @@ class App:
         frame_count = 0
         turn = 0
         simulation_running = False
-        error_message = ""
+        error_message: list[str] = []
         error_until = 0
 
         end_hub: Hub | None = None
@@ -602,7 +614,9 @@ class App:
 
         # Fazer drone se mover animado
         positions, _ = self.calc_screen_positions(mapper)
-        for drone in mapper. list_drone:
+        for drone in mapper.list_drone:
+            if drone.current_hub is None:
+                continue
             start_pos = positions["start"]
             drone.screen_x = start_pos[0]
             drone.screen_y = start_pos[1]
@@ -631,6 +645,9 @@ class App:
                         print("Stop")
 
                     elif self.reverse_button.collidepoint(menu_mouse):
+                        if end_hub is None:
+                            continue
+
                         if (
                             mapper.drones_in_hub(end_hub.name)
                             != mapper.nb_drone
@@ -662,7 +679,9 @@ class App:
                         mapper = self.parse_file()
                         positions, _ = self.calc_screen_positions(mapper)
 
-                        for drone in mapper. list_drone:
+                        for drone in mapper.list_drone:
+                            if drone.current_hub is None:
+                                continue
                             start_pos = positions["start"]
                             drone.screen_x = start_pos[0]
                             drone.screen_y = start_pos[1]
@@ -679,6 +698,9 @@ class App:
                         break
 
                 if not moving:
+                    if end_hub is None:
+                        continue
+
                     target = "start" if mapper.reverse else end_hub.name
 
                     if mapper.drones_in_hub(target) < mapper.nb_drone:
@@ -724,8 +746,8 @@ def main() -> None:
         tela = App()
         tela.run()
     except Exception as e:
-        exc_type, exc_obj, exc_tb = exc_info()
-        error_line = exc_tb.tb_lineno
+        exc_tb = exc_info()[2]
+        error_line = exc_tb.tb_lineno if exc_tb is not None else -1
         print(f"Erro in line {error_line}: {e}")
 
 

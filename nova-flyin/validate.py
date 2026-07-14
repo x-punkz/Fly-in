@@ -18,6 +18,8 @@ class Parser:
         connect_list: list[Connection] = []
         connect_set: set[tuple[str, str]] = set()
 
+        nb_drone = 0
+
         for line in self.config_file.splitlines():
             if line.strip() and not line.startswith("#"):
                 key, value = line.strip().split(":")
@@ -50,22 +52,22 @@ class Parser:
                     if len(datas) < 1:
                         raise TypeError(f"The '{key}' has no data.")
                     data, meta_data = datas
-                    if data[0] in hub_list:
+                    # if data[0] in hub_list:
+                    if any(hub.name == data[0] for hub in hub_list):
                         raise ParserError(f"'{data[0]}' already exists")
                     hub_list.append(Creator.create_hubs(data, meta_data))
 
                 # valida os dados da conexão e cria o objeto Connection
                 elif "connection" in key:
-                    hub_list_name: list[str] = []
-                    for hub in hub_list:
-                        hub_list_name.append(hub.name)
-                    datas = ValidateDatas.connection_validate(key, value)
+                    hub_list_name: list[str] = [hub.name for hub in hub_list]
+                    conn_datas = ValidateDatas.connection_validate(key, value)
 
-                    if len(datas) < 1:
+                    if len(conn_datas) < 1:
                         raise TypeError(f"The '{key}' has no data.")
-                    endpoints, meta_data = datas
+                    endpoints, m_data = conn_datas
 
-                    connection_id = tuple(sorted(endpoints))
+                    sorted_endpoints = sorted(endpoints)
+                    connection_id = (sorted_endpoints[0], sorted_endpoints[1])
                     if connection_id in connect_set:
                         raise ParserError(
                             "Duplicate connection: "
@@ -76,7 +78,7 @@ class Parser:
                     connect_list.append(
                         Creator.create_connections(
                             endpoints,
-                            meta_data,
+                            m_data,
                             hub_list_name
                         )
                     )
@@ -87,7 +89,8 @@ class Parser:
 class ValidateDatas:
 
     @staticmethod
-    def hub_validate(key: str, value: str) -> tuple:
+    def hub_validate(key: str, value: str) -> tuple[list[str],
+                                                    dict[str, str]]:
         '''
             Valida os dados do vindos do arquivo de configuraçao do Hub.
             Retorna:
@@ -99,42 +102,46 @@ class ValidateDatas:
         value = value.strip()
         brute_data = value.split("[")
         data = brute_data[0].strip().split()
+        meta_data: dict[str, str] = {}
 
         if len(brute_data) != 2:
-            meta = None
-            pass
-        else:
-            brute_metadata = brute_data[1].strip().split("]")
+            return data, meta_data
 
-            if not brute_metadata[1]:
-                brute_metadata = [brute_metadata[0]]
+        brute_metadata = brute_data[1].strip().split("]")
 
-            if (len(brute_metadata) > 1
-                    and not brute_metadata[1].strip().startswith("#")):
-                raise ParserError(f"Many arguments in line in: \
-'{key}: {value}'")
+        if not brute_metadata[1]:
+            brute_metadata = [brute_metadata[0]]
 
-            meta = {k: v
-                    for k, v in (
-                        item.split("=")
-                        for item in brute_metadata[0].split()
-                    )}
-            if not len(meta) <= 3:
-                raise ParserError("Many Arguments in metadata!")
+        if (len(brute_metadata) > 1
+                and not brute_metadata[1].strip().startswith("#")):
+            raise ParserError(
+                f"Many arguments in line in: '{key}: {value}'"
+            )
 
-            elif data == ['']:
-                raise ParserError(" There is no data for the hub.")
-            for key in meta.keys():
-                if key not in key_names:
-                    raise ParserError(f"'{key}' is not valid keys name")
+        for item in brute_metadata[0].split():
+            key_name, value_name = item.split("=", 1)
+            meta_data[key_name] = value_name
 
-                if key == 'zone' and meta['zone'] not in possible_zones:
-                    raise ParserError(f"{meta['zone']} is not a valid zone")
+        if len(meta_data) > 3:
+            raise ParserError("Many Arguments in metadata!")
 
-        return (data, meta)
+        if not data:
+            raise ParserError(" There is no data for the hub.")
+
+        for key_name in meta_data:
+            if key_name not in key_names:
+                raise ParserError(f"'{key_name}' is not valid keys name")
+
+            if key_name == "zone" and meta_data["zone"] not in possible_zones:
+                raise ParserError(f"{meta_data['zone']} is not a valid zone")
+
+        return data, meta_data
 
     @staticmethod
-    def connection_validate(key: str, value: str) -> tuple:
+    def connection_validate(
+        key: str,
+        value: str,
+    ) -> tuple[list[str], dict[str, int]]:
         '''
             Valida os dados do vindos do arquivo de configuraçao da Conexão.
             Retorna:
@@ -146,7 +153,7 @@ class ValidateDatas:
         brute_data = value.split("[")
         raw = brute_data[0].strip()
 
-        if raw == '':
+        if raw == "":
             raise ParserError(" There is no data for the connection.")
 
         endpoints = raw.split("-")
@@ -157,46 +164,36 @@ class ValidateDatas:
             )
         if len(endpoints) != 2 or not endpoints[0] or not endpoints[1]:
             raise ParserError(
-                f"Invalid connection format in: "
-                f"'{key}: {value}'"
+                f"Invalid connection format in: '{key}: {value}'"
             )
 
         if len(brute_data) != 2:
-            meta = None
-            pass
-        else:
-            brute_metadata = brute_data[1].strip().split("]")
+            return endpoints, {}
 
-            if not brute_metadata[1]:
-                brute_metadata = [brute_metadata[0]]
+        brute_metadata = brute_data[1].strip().split("]")
 
-            if (len(brute_metadata) > 1
-                    and not brute_metadata[1].strip().startswith("#")):
-                raise ParserError(f"Many arguments in line in: \
-'{key}: {value}'")
+        if not brute_metadata[1]:
+            brute_metadata = [brute_metadata[0]]
 
-            meta = {k: v
-                    for k, v in (
-                        item.split("=")
-                        for item in brute_metadata[0].split()
-                    )}
+        if (len(brute_metadata) > 1
+                and not brute_metadata[1].strip().startswith("#")):
+            raise ParserError(
+                f"Many arguments in line in: '{key}: {value}'"
+            )
 
-            if not len(meta) <= 1:
-                raise ParserError("Many Arguments in metadata!")
+        meta_data: dict[str, int] = {}
+        for item in brute_metadata[0].split():
+            key_name, value_name = item.split("=", 1)
+            meta_data[key_name] = int(value_name)
 
-            for mkey in meta.keys():
-                if mkey not in key_names:
-                    raise ParserError(f"'{mkey}' is not valid keys name")
-            for key, value in meta.items():
-                try:
-                    meta[key] = int(value)
-                except ValueError:
-                    raise ParserError(
-                        f"'{value}' in '{key}' of the connection '{endpoints}'"
-                        ", is not a int"
-                    )
+        if len(meta_data) > 1:
+            raise ParserError("Many Arguments in metadata!")
 
-        return (endpoints, meta)
+        for mkey in meta_data:
+            if mkey not in key_names:
+                raise ParserError(f"'{mkey}' is not valid keys name")
+
+        return endpoints, meta_data
 
 
 class Creator:
@@ -207,11 +204,13 @@ class Creator:
             os metadados, se existir, e se o hub é start ou end.
         '''
         try:
+            x_value = int(data[1])
+            y_value = int(data[2])
             hub = Hub(
-                    name=data[0],
-                    x=data[1],
-                    y=data[2]
-                )
+                name=data[0],
+                x=x_value,
+                y=y_value,
+            )
             if meta_data:
                 hub.set_metadata(meta_data)
         except ValidationError as e:
@@ -243,7 +242,7 @@ class Creator:
                endpoints[1] in possible_hubs_name):
                 connection = Connection(
                     start_point=endpoints[0],
-                    end_point=endpoints[1]
+                    end_point=endpoints[1],
                 )
             else:
                 raise ParserError(f"The endpoint {endpoints[0]} or \

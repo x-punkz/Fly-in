@@ -1,6 +1,6 @@
 from pydantic import Field, BaseModel, model_validator
 from PIL import Image
-# from collections import deque
+from typing import ClassVar
 
 
 class Hub(BaseModel):
@@ -14,7 +14,7 @@ class Hub(BaseModel):
     zone: str = Field(default="normal")
     start_hub: bool = Field(default=False)
     end_hub: bool = Field(default=False)
-    image_cache: dict = {}
+    image_cache: ClassVar[dict[tuple[str, str], Image.Image]] = {}
     cost: int = Field(default=1, ge=1)
 
     @model_validator(mode="after")
@@ -79,7 +79,7 @@ class Hub(BaseModel):
 
         return result
 
-    def set_metadata(self, metadata: dict[str]) -> None:
+    def set_metadata(self, metadata: dict[str, str]) -> None:
         '''
         Seta os metadados do hub.
         '''
@@ -131,21 +131,20 @@ class Connection(BaseModel):
     max_link_capacity: int = Field(default=1, ge=1)
     drones_on_link: list[str] = []
 
-    def set_metadata(self, metadata: dict[str]) -> None:
+    def set_metadata(self, metadata: dict[str, int]) -> None:
         if "max_link_capacity" in metadata:
             self.max_link_capacity = int(metadata["max_link_capacity"])
 
 
 class Drone(BaseModel):
     name: str = Field(...)
-    current_hub: Hub = Field(...)
+    current_hub: Hub | None = Field(...)
     screen_x: float = 0
     screen_y: float = 0
     target_hub: Hub | None = None
     path: list[str] = []
     final_path: list[str] = []
     path_index: int = 0
-    # path_cost: float = float("inf")
     active: bool = False
     current_connection: str | None = None
     waiting_turns: int = 0
@@ -161,10 +160,10 @@ class Map():
                  list_conex: list[Connection],
                  nb_drone: int):
 
-        self.list_hub = list_hub
-        self.list_conex = list_conex
-        self.nb_drone = nb_drone
-        self.reverse = False
+        self.list_hub: list[Hub] = list_hub
+        self.list_conex: list[Connection] = list_conex
+        self.nb_drone: int = nb_drone
+        self.reverse: bool = False
         for hub in list_hub:
             if hub.end_hub:
                 hub.max_drones = nb_drone
@@ -175,7 +174,7 @@ class Map():
             hub.mount_image_hub()
 
     def create_graph(self) -> dict[str, list[str]]:
-        graph = {}
+        graph: dict[str, list[str]] = {}
 
         for conn in self.list_conex:
             start = conn.start_point
@@ -191,7 +190,7 @@ class Map():
             graph[end].append(start)
         return graph
 
-    def get_hub_by_name(self, name) -> Hub | None:
+    def get_hub_by_name(self, name: str) -> Hub | None:
         for hub in self.list_hub:
             if hub.name == name:
                 return hub
@@ -211,20 +210,25 @@ class Map():
             start: str
             ) -> list[str]:
 
-        graph = self.create_graph()
+        graph: dict[str, list[str]] = self.create_graph()
 
         # start = "start"
         goal = next(hub.name for hub in self.list_hub if hub.end_hub)
 
-        distances = {node: float("inf") for node in graph}
-        previous = {node: None for node in graph}
+        distances: dict[str, float] = {node: float("inf") for node in graph}
+        previous: dict[str, str | None] = {node: None for node in graph}
 
         distances[start] = 0
         unvisited = set(graph.keys())
 
         while unvisited:
 
-            current = min(unvisited, key=lambda node: distances[node])
+            current: str | None = min(unvisited,
+                                      key=lambda node: distances[node]
+                                      )
+            if current is None:
+                break
+
             unvisited.remove(current)
 
             if distances[current] == float("inf"):
@@ -263,12 +267,12 @@ class Map():
         if distances[goal] == float("inf"):
             return []
 
-        path = []
-        current = goal
+        path: list[str] = []
+        path_current: str | None = goal
 
-        while current is not None:
-            path.append(current)
-            current = previous[current]
+        while path_current is not None:
+            path.append(path_current)
+            path_current = previous[path_current]
 
         path.reverse()
         return path
@@ -276,6 +280,9 @@ class Map():
     def create_drone(self) -> list[Drone]:
         drone_list: list[Drone] = []
         start_hub = self.get_hub_by_name("start")
+        if start_hub is None:
+            raise ValueError("Missing start hub")
+
         start_hub.drones_in_hub = self.nb_drone
         route = self.find_path_w_dijkstra("start")
 
@@ -292,7 +299,7 @@ class Map():
 
         return drone_list
 
-    def get_connection(self, start, end) -> Connection | None:
+    def get_connection(self, start: str, end: str) -> Connection | None:
         for conn in self.list_conex:
             if (
                 (conn.start_point == start and conn.end_point == end)
@@ -327,6 +334,9 @@ class Map():
             self.list_drone[0].path[1]
         )
 
+        if first_conn is None or next_hub is None:
+            return
+
         free_link = (
             first_conn.max_link_capacity
             - len(first_conn.drones_on_link)
@@ -343,6 +353,7 @@ class Map():
             drone for drone in self.list_drone
             if (
                 not drone.active
+                and drone.current_hub is not None
                 and drone.current_hub.name == drone.path[0]
             )
         ]
@@ -353,7 +364,11 @@ class Map():
 
     def move_drone(self) -> None:
 
-        drones = list(reversed(self.list_drone)) if self.reverse else self.list_drone
+        drones: list[Drone] = []
+        if self.reverse:
+            drones = list(reversed(self.list_drone))
+        else:
+            drones = self.list_drone
 
         for drone in drones:
             if drone.moving:
@@ -377,18 +392,24 @@ class Map():
                 drone.active = True
                 # continue
 
+            current_hub = drone.current_hub
+            if current_hub is None:
+                continue
+
             if self.reverse:
                 if not drone.path or (
-                    drone.path_index == 0 and drone.path and drone.path[0] != drone.current_hub.name
+                    drone.path_index == 0
+                    and drone.path
+                    and drone.path[0] != current_hub.name
                 ):
                     if drone.final_path:
                         drone.path = drone.final_path[::-1]
                     else:
-                        drone.path = [drone.current_hub.name]
+                        drone.path = [current_hub.name]
                     drone.path_index = 0
             else:
                 drone.path = self.find_path_w_dijkstra(
-                    drone.current_hub.name
+                    current_hub.name
                 )
                 drone.path_index = 0
 
@@ -406,6 +427,8 @@ class Map():
                 continue
 
             next_hub = self.get_hub_by_name(next_name)
+            if next_hub is None:
+                continue
 
             if next_hub.zone == "blocked":
                 continue
@@ -422,14 +445,18 @@ class Map():
                 continue
 
             if drone.name not in next_connection.drones_on_link:
-                has_midpoint_pause = any(
-                    next_hub.zone == "restricted"
-                    and next_hub.cost >= 2
-                    and self.get_drone_by_name(name) is not None
-                    and self.get_drone_by_name(name).waiting_at_midpoint
-                    and self.get_drone_by_name(name).target_hub == next_hub
-                    for name in next_connection.drones_on_link
-                )
+                has_midpoint_pause = False
+                for name in next_connection.drones_on_link:
+                    other_drone = self.get_drone_by_name(name)
+                    if (
+                        next_hub.zone == "restricted"
+                        and next_hub.cost >= 2
+                        and other_drone is not None
+                        and other_drone.waiting_at_midpoint
+                        and other_drone.target_hub == next_hub
+                    ):
+                        has_midpoint_pause = True
+                        break
 
                 if has_midpoint_pause:
                     continue
@@ -452,7 +479,7 @@ class Map():
                     f"-{next_connection.end_point}"
                 )
 
-            drone.current_hub.drones_in_hub -= 1
+            current_hub.drones_in_hub -= 1
             drone.target_hub = next_hub
             drone.link_pause_pending = (
                 next_hub.zone == "restricted" and next_hub.cost >= 2
