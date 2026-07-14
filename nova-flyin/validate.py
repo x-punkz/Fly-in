@@ -17,6 +17,7 @@ class Parser:
         hub_list: list[Hub] = []
         connect_list: list[Connection] = []
         connect_set: set[tuple[str, str]] = set()
+        coordinate_set: set[tuple[str, str]] = set()
 
         nb_drone = 0
 
@@ -49,12 +50,21 @@ class Parser:
 
                     # valida os dados do hub e cria o objeto Hub
                     datas = ValidateDatas.hub_validate(key, value)
+
                     if len(datas) < 1:
                         raise TypeError(f"The '{key}' has no data.")
                     data, meta_data = datas
-                    # if data[0] in hub_list:
+
                     if any(hub.name == data[0] for hub in hub_list):
-                        raise ParserError(f"'{data[0]}' already exists")
+                        raise ParserError(f"'Hub name {data[0]}'"
+                                          "already exists")
+
+                    coordinate_id = (data[1], data[2])
+                    if coordinate_id in coordinate_set:
+                        raise ParserError(f"Coordenate '{data[1]}, {data[2]}' "
+                                          f"in '{data[0]}' "
+                                          "already exists")
+                    coordinate_set.add(coordinate_id)
                     hub_list.append(Creator.create_hubs(data, meta_data))
 
                 # valida os dados da conexão e cria o objeto Connection
@@ -82,7 +92,8 @@ class Parser:
                             hub_list_name
                         )
                     )
-
+        if self.start_count == 0 or self.end_count == 0:
+            raise ParserError("Start_hub or End_hub doesn't exist")
         return (hub_list, connect_list, nb_drone)
 
 

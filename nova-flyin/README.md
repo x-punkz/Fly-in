@@ -127,9 +127,7 @@ cost(hub) = hub.cost * 2
 
 This means drones actively route *around* crowded hubs and saturated links
 instead of piling up and deadlocking, without needing a separate flow
-optimizer. `blocked` zones are excluded from the graph outright, and a
-hard-coded chokepoint (`gate_hell2`) is always skipped, letting a map
-designer force detours.
+optimizer. `blocked` zones are excluded from the graph outright.
 
 Once a shortest path to the goal is found (or an empty list if the goal is
 unreachable), `Map.move_drone()` advances every drone by at most one hop per
@@ -253,7 +251,7 @@ An AI assistant was used during this project for:
 - **Prototyping the isometric coordinate transform**: the rotation/scale
   formula in `App.coordenadas_giradas` was worked out with AI assistance
   (noted directly in the source as `# dica do gepeto pro caminho ocupar 75%
-  da cidade`) and then adapted and integrated into `calc_screen_positions`.
+  da cidade)` and then adapted and integrated into `calc_screen_positions`.
 - **Debugging and reviewing** the Dijkstra congestion-penalty logic and the
   turn-based drone movement/queuing state machine (`move_drone`,
   `animate_drones`) — discussing edge cases such as restricted-zone

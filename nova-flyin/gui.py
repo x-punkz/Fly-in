@@ -2,6 +2,7 @@ from validate import Parser
 from map import Map, Hub
 from sys import argv, exc_info
 import pygame
+from pygame import Surface as surf, Rect
 
 
 class App:
@@ -10,18 +11,33 @@ class App:
         pygame.display.set_caption("Fly_in")
         icon = pygame.image.load("images/icon.png")
         pygame.display.set_icon(icon)
-        # escolher a imagem do bg e por o caminho aqui
         self.bg = pygame.image.load("images/map/iso.png")
-        # pygame.mixer.music.load() #  da p por musica
-        self.drone_img = pygame.image.load("images/drone/drone.png")
+        # Musica
+        pygame.mixer.init()
+        self.sound_on: bool = True
+        pygame.mixer.music.load("songs/cyberpunk.mp3")
+        pygame.mixer.music.play(-1)
+        self.sound_icon_size: tuple[int, int] = (180, 200)
+        self.play: surf = pygame.image.load("songs/music.png")
+        self.play: surf = pygame.transform.scale(self.play,
+                                                 self.sound_icon_size)
+        self.mute: surf = pygame.image.load("songs/mute.png")
+        self.mute: surf = pygame.transform.scale(self.mute,
+                                                 self.sound_icon_size)
+        self.sound_pos: tuple[int, int] = (
+            60 + (275 - self.sound_icon_size[0]) // 2,
+            740 + 120 - 20
+        )
+        self.sound_rect: Rect = self.play.get_rect(topleft=self.sound_pos)
+        self.drone_img: surf = pygame.image.load("images/drone/drone.png")
         # botoes
-        self.start_img = pygame.image.load("images/buttons/start.png")
-        self.stop_img = pygame.image.load("images/buttons/stop.png")
-        self.reverse_img = pygame.image.load("images/buttons/reverse.png")
-        self.reset_img = pygame.image.load("images/buttons/reset.png")
-        self.turn_button = pygame.image.load("images/buttons/turns.png")
-        self.drone_button = pygame.image.load("images/buttons/drone.png")
-        self.goal_button = pygame.image.load("images/buttons/goal.png")
+        self.start_img: surf = pygame.image.load("images/button/start.png")
+        self.stop_img: surf = pygame.image.load("images/button/stop.png")
+        self.reverse_img: surf = pygame.image.load("images/button/reverse.png")
+        self.reset_img: surf = pygame.image.load("images/button/reset.png")
+        self.turn_button: surf = pygame.image.load("images/button/turns.png")
+        self.drone_button: surf = pygame.image.load("images/button/drone.png")
+        self.goal_button: surf = pygame.image.load("images/button/goal.png")
 
         screen_info: pygame.display._VidInfo = pygame.display.Info()
         self.base_width: int = 1600
@@ -49,10 +65,10 @@ class App:
         self.menu.fill(game_color)
         self.font_name = "images/font/Michroma-Regular.ttf"
 
-        self.start_button = pygame.Rect(60, 390, 350, 60)
-        self.stop_button = pygame.Rect(60, 460, 350, 60)
-        self.reverse_button = pygame.Rect(60, 530, 350, 60)
-        self.reset_button = pygame.Rect(60, 600, 350, 60)
+        self.start_button = Rect(60, 390, 285, 60)
+        self.stop_button = Rect(60, 460, 285, 60)
+        self.reverse_button = Rect(60, 530, 285, 60)
+        self.reset_button = Rect(60, 600, 285, 60)
 
     @staticmethod
     def coordenadas_giradas(x: float,
@@ -79,8 +95,6 @@ class App:
                 config_dict = Parser(config_file)
                 hubs, connections, nb_drone = config_dict.parse()
         except (Exception) as e:
-            # PRECISO VER O ERRO DE VALIDATOR E DE EXCEPTION
-            #     # if Exception:
             print(e)
             exit(1)
 
@@ -295,8 +309,6 @@ class App:
 
         num_hubs = len(mapper.list_hub)
 
-        # baseline = 200
-
         # tamanho dos predios, calc o tamanho e depois limita no maximo
         icon_size = int(1200 / (num_hubs ** 0.5))
         icon_size = max(100, min(icon_size, 220))
@@ -346,9 +358,9 @@ class App:
         points = [
             (20, 20),
             (250, 20),
-            (300, 70),
-            (390, 70),
-            (440, 20),
+            (285, 60),
+            (350, 60),
+            (380, 20),
             (self.menu.get_width() - 20, 20),
             (self.menu.get_width() - 20, self.menu.get_height() - 20),
             (20, self.menu.get_height() - 20)
@@ -357,8 +369,8 @@ class App:
         points2 = [
             (35, 140),
             (35, 980),
-            (445, 980),
-            (445, 40),
+            (365, 980),
+            (365, 70),
 
         ]
 
@@ -378,7 +390,7 @@ class App:
             2,
         )
 
-    def draw_button_border(self, name: str, rect: pygame.Rect) -> None:
+    def draw_button_border(self, name: str, rect: Rect) -> None:
         if name == "start":
             name = "/images/buttons/start"
         elif name == "stop":
@@ -446,18 +458,18 @@ class App:
             self.menu,
             (255, 0, 255),
             (60, 160),
-            (400, 160),
+            (340, 160),
             3
         )
         # Vertical line
         pygame.draw.line(
             self.menu,
             (255, 0, 255),
-            (400, 145),
-            (400, 160),
+            (340, 145),
+            (340, 160),
             3
         )
-        # logo
+        # logo turns
         self.menu.blit(self.turn_button, (60, 175))
 
         turns_text = font.render(
@@ -467,7 +479,7 @@ class App:
         )
         self.menu.blit(turns_text, (105, 175))
 
-        # logo
+        # logo drone
         self.menu.blit(self.drone_button, (60, 225))
         drones_text = font.render(
             f"DRONES                     {mapper.nb_drone}",
@@ -476,6 +488,7 @@ class App:
         )
         self.menu.blit(drones_text, (105, 225))
 
+        # logo goal
         self.menu.blit(self.goal_button, (60, 280))
         goal_text = font.render(
             "GOAL                        "
@@ -494,15 +507,15 @@ class App:
             self.menu,
             (255, 0, 255),
             (60, 370),
-            (400, 370),
+            (340, 370),
             3
         )
         # Vertical line
         pygame.draw.line(
             self.menu,
             (255, 0, 255),
-            (400, 355),
-            (400, 370),
+            (340, 355),
+            (340, 370),
             3
         )
 
@@ -515,7 +528,7 @@ class App:
             self.menu,
             (255, 0, 255),
             (60, 725),
-            (400, 725),
+            (340, 725),
             3
         )
 
@@ -523,15 +536,15 @@ class App:
         pygame.draw.line(
             self.menu,
             (255, 0, 255),
-            (400, 710),
-            (400, 725),
+            (340, 710),
+            (340, 725),
             3
         )
 
         pygame.draw.rect(
             self.menu,
             (255, 0, 255),
-            (65, 740, 335, 120),
+            (65, 740, 275, 120),
             width=2,
             border_top_left_radius=15,
             border_top_right_radius=0,
@@ -594,6 +607,15 @@ class App:
         img_rect4.centery = self.reset_button.centery
         self.menu.blit(self.reset_img, img_rect4)
 
+        # SOUND
+        sound_bg_rect = self.play.get_rect(topleft=self.sound_pos)
+
+        if self.sound_on:
+            self.menu.blit(self.play, self.sound_pos)
+        else:
+            self.menu.blit(self.mute, self.sound_pos)
+        self.sound_rect = sound_bg_rect
+
     def run(self) -> None:
         '''
             Roda o programa
@@ -636,12 +658,24 @@ class App:
                         virtual_mouse[0] - self.game.get_width(),
                         virtual_mouse[1]
                     )
+                    if self.sound_rect.collidepoint(menu_mouse):
+                        if self.sound_on:
+                            pygame.mixer.music.pause()
+                            self.sound_on = False
+                        else:
+                            pygame.mixer.music.unpause()
+                            self.sound_on = True
 
                     if self.start_button.collidepoint(menu_mouse):
                         simulation_running = True
 
                     elif self.stop_button.collidepoint(menu_mouse):
                         simulation_running = False
+                        error_message = [
+                            "DRONES",
+                            "   ARE STOPED."
+                            ]
+                        error_until = pygame.time.get_ticks() + 2000
                         print("Stop")
 
                     elif self.reverse_button.collidepoint(menu_mouse):
@@ -670,6 +704,11 @@ class App:
                                 drone.active = False
                                 drone.moving = False
 
+                            error_message = [
+                                "REVERSE",
+                                "     IS ENABLED."
+                                ]
+                            error_until = pygame.time.get_ticks() + 2000
                             print("reverse")
 
                     elif self.reset_button.collidepoint(menu_mouse):
@@ -686,6 +725,11 @@ class App:
                             drone.screen_x = start_pos[0]
                             drone.screen_y = start_pos[1]
 
+                        error_message = [
+                            "THE DRONE POSITIONS",
+                            "    HAVE BEEN RESET."
+                            ]
+                        error_until = pygame.time.get_ticks() + 2000
                         print("Reset")
 
             if frame_count % 60 == 0 and simulation_running:
@@ -728,7 +772,7 @@ class App:
                         True,
                         (220, 20, 60)
                     )
-                    self.menu.blit(text, (150, y))
+                    self.menu.blit(text, (120, y))
                     y += 28
 
             self.virtual_window.blit(self.game, (0, 0))
