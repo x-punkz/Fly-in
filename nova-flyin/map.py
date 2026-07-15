@@ -1,6 +1,7 @@
 from pydantic import Field, BaseModel, model_validator
 from PIL import Image
 from typing import ClassVar
+from sys import exc_info
 
 
 class Hub(BaseModel):
@@ -100,7 +101,10 @@ class Hub(BaseModel):
             try:
                 self.max_drones = int(metadata["max_drones"])
 
-            except ValueError:
+            except ValueError as e:
+                exc_tb = exc_info()[2]
+                error_line = exc_tb.tb_lineno if exc_tb is not None else -1
+                print(f"Erro in line {error_line}: {e}")
                 raise ValueError(
                     f"'{metadata['max_drones']}' "
                     "is not a valid max_drones value"
@@ -110,8 +114,6 @@ class Hub(BaseModel):
             self.zone = metadata["zone"]
             if self.zone == "restricted":
                 self.cost = 2
-            # elif self.zone == "normal":
-            #     self.cost = 2
 
             self.model = models[self.zone]
 
@@ -165,10 +167,9 @@ class Map():
         self.nb_drone: int = nb_drone
         self.reverse: bool = False
         for hub in list_hub:
-            if hub.end_hub:
+            if hub.end_hub or hub.start_hub:
                 hub.max_drones = nb_drone
         self.list_drone = self.create_drone()
-        # print("Rota encontrada:", self.find_path_w_bfs())
 
         for hub in self.list_hub:
             hub.mount_image_hub()
@@ -212,7 +213,6 @@ class Map():
 
         graph: dict[str, list[str]] = self.create_graph()
 
-        # start = "start"
         goal = next(hub.name for hub in self.list_hub if hub.end_hub)
 
         distances: dict[str, float] = {node: float("inf") for node in graph}
@@ -238,8 +238,6 @@ class Map():
                 break
 
             for neighbor in graph[current]:
-                if neighbor == "gate_hell2":
-                    continue
 
                 hub = self.get_hub_by_name(neighbor)
 
@@ -390,7 +388,6 @@ class Map():
 
             if not drone.active:
                 drone.active = True
-                # continue
 
             current_hub = drone.current_hub
             if current_hub is None:
@@ -485,7 +482,6 @@ class Map():
                 next_hub.zone == "restricted" and next_hub.cost >= 2
             )
             drone.paused_on_link = False
-            # drone.current_hub = None
             drone.moving = True
 
         self.release_start_drones()

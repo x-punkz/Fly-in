@@ -1,12 +1,14 @@
-from validate import Parser
 from map import Map, Hub
-from sys import argv, exc_info
+from sys import exc_info
+import os
 import pygame
 from pygame import Surface as surf, Rect
+from map_loader import MapLoader
 
 
 class App:
-    def __init__(self) -> None:
+    def __init__(self, map_file: str) -> None:
+        self.map_file = map_file
         pygame.init()
         pygame.display.set_caption("Fly_in")
         icon = pygame.image.load("images/icon.png")
@@ -19,11 +21,9 @@ class App:
         pygame.mixer.music.play(-1)
         self.sound_icon_size: tuple[int, int] = (180, 200)
         self.play: surf = pygame.image.load("songs/music.png")
-        self.play: surf = pygame.transform.scale(self.play,
-                                                 self.sound_icon_size)
+        self.play = pygame.transform.scale(self.play, self.sound_icon_size)
         self.mute: surf = pygame.image.load("songs/mute.png")
-        self.mute: surf = pygame.transform.scale(self.mute,
-                                                 self.sound_icon_size)
+        self.mute = pygame.transform.scale(self.mute, self.sound_icon_size)
         self.sound_pos: tuple[int, int] = (
             60 + (275 - self.sound_icon_size[0]) // 2,
             740 + 120 - 20
@@ -84,22 +84,6 @@ class App:
         Y = unidade * (x + y*2)
         return X, Y
 
-    @staticmethod
-    def parse_file() -> Map:
-        if len(argv) < 2:
-            print("   Passe o arquivo de configuraçao!")
-            exit(1)
-        try:
-            with open(argv[1]) as file:
-                config_file = file.read()
-                config_dict = Parser(config_file)
-                hubs, connections, nb_drone = config_dict.parse()
-        except (Exception) as e:
-            print(e)
-            exit(1)
-
-        return Map(list_hub=hubs, list_conex=connections, nb_drone=nb_drone)
-
     def calc_screen_positions(self,
                               mapper: Map) -> tuple[dict[str,
                                                          tuple[int, int]
@@ -123,9 +107,9 @@ class App:
         # dica do gepeto pro caminho ocupar 75% da cidade
         start_x, start_y = rotated_coords["start"]
         if "impossible_goal" in rotated_coords:
-            goal_x, goal_y = rotated_coords["impossible_goal"]
+            goal_x, _ = rotated_coords["impossible_goal"]
         else:
-            goal_x, goal_y = rotated_coords["goal"]
+            goal_x, _ = rotated_coords["goal"]
 
         route_width = max(1, abs(goal_x - start_x))
         scale = (game_w * 0.75) / route_width
@@ -161,8 +145,8 @@ class App:
 
         for name, (rot_x, rot_y) in rotated_coords.items():
 
-            positions[name] = to_screen(rot_x, rot_y)
             # calcula posicoes na tela a partir das coordenadas rotacionadas
+            positions[name] = to_screen(rot_x, rot_y)
 
         return positions, scale
 
@@ -280,7 +264,6 @@ class App:
                 drone.current_hub = target_hub
                 drone.waiting_at_midpoint = False
 
-                # mudança estranha
                 if not mapper.reverse:
                     drone.final_path.append(drone.current_hub.name)
 
@@ -620,8 +603,9 @@ class App:
         '''
             Roda o programa
         '''
+        map_loader = MapLoader()
         running: bool = True
-        mapper = self.parse_file()
+        mapper = map_loader.parse_file(self.map_file)
         frame_count = 0
         turn = 0
         simulation_running = False
@@ -715,7 +699,7 @@ class App:
                         simulation_running = False
                         turn = 0
                         frame_count = 0
-                        mapper = self.parse_file()
+                        mapper = map_loader.parse_file(self.map_file)
                         positions, _ = self.calc_screen_positions(mapper)
 
                         for drone in mapper.list_drone:
@@ -733,8 +717,6 @@ class App:
                         print("Reset")
 
             if frame_count % 60 == 0 and simulation_running:
-                # if simulation_running:
-
                 moving = False
                 for drone in mapper.list_drone:
                     if drone.moving:
@@ -778,8 +760,8 @@ class App:
             self.virtual_window.blit(self.game, (0, 0))
             self.virtual_window.blit(self.menu, (self.game.get_width(), 0))
 
-            self.render_to_window()
             # desenha bg, conexões e hubs em self.game
+            self.render_to_window()
 
             pygame.display.flip()
         pygame.quit()
@@ -787,9 +769,24 @@ class App:
 
 def main() -> None:
     try:
-        tela = App()
-        tela.run()
-    except Exception as e:
+        while True:
+            map_loader = MapLoader()
+            difficulty = map_loader.choose_difficult()
+            if difficulty == "quit":
+                exit(0)
+            difficulty_dir = os.path.join(map_loader.MAP_ROOT, difficulty)
+
+            while True:
+                choosed_map = map_loader.choose_map(difficulty_dir)
+
+                if choosed_map is None:
+                    os.system("clear")
+                    break
+                map_file = os.path.join(difficulty_dir, choosed_map)
+
+                tela = App(map_file)
+                tela.run()
+    except (Exception, KeyboardInterrupt) as e:
         exc_tb = exc_info()[2]
         error_line = exc_tb.tb_lineno if exc_tb is not None else -1
         print(f"Erro in line {error_line}: {e}")

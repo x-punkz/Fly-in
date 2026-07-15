@@ -248,16 +248,11 @@ Expected behavior:
 
 An AI assistant was used during this project for:
 
-- **Prototyping the isometric coordinate transform**: the rotation/scale
-  formula in `App.coordenadas_giradas` was worked out with AI assistance
-  (noted directly in the source as `# dica do gepeto pro caminho ocupar 75%
-  da cidade)` and then adapted and integrated into `calc_screen_positions`.
+- **Prototyping the isometric coordinate transform**: adapted and integrated
+  into `calc_screen_positions`.
 - **Debugging and reviewing** the Dijkstra congestion-penalty logic and the
   turn-based drone movement/queuing state machine (`move_drone`,
   `animate_drones`) — discussing edge cases such as restricted-zone
   midpoint pauses and start-hub release staggering.
 - **Drafting this `README.md`**: summarizing and structuring the project's
   architecture, algorithm, and usage instructions based on the source code.
-
-No AI-generated code was used for core business logic without review; all
-suggestions were read, adapted, and tested by the author before being kept.
